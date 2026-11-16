@@ -339,6 +339,28 @@
 - 关联 bug: 无
 - 备注: Q-13/Q-14 关闭。至此 Day 06 审计零未决项
 
+### T-029  [PASS]
+- 时间戳: 2026-11-16T14:20:00Z
+- 对应: Day 07（dev-plan/day-07.md §7，提交 1bb88e5，定时监控触发） / 里程碑 M1
+- 测试项: Day 07 默认套件 + §7 官方用例独立复跑（纯状态机 + 属性测试 + controller）
+- 命令: `go build ./... && go vet ./... && go test ./... -count=1`
+- 预期: 全绿
+- 实际: 全绿，internal/control 含 5 组测试（状态集对照/Stop-Fail 全非终态/终态无出边/rapid 属性/关键迁移锚点 + controller CAS）
+- 结果: PASS
+- 关联 bug: 无
+- 备注: `go generate ./...` 后 git status 干净——生成物与 states.yaml 同步 ✅
+
+### T-030  [FAIL→发现]
+- 时间戳: 2026-11-16T14:28:00Z
+- 对应: Day 07（迁移表 × spec §5.1/§9.7 独立对账，测试方核心职责） / 里程碑 M1
+- 测试项: states.yaml 迁移表对照主文档 §5.1（L1322-1355）与 §9.7（L2450-2458）逐条核对 + 行为级探针证实
+- 命令: 静态对照 + 临时探针（internal/control/zz_probe_test.go，已删）`go test -run TestProbeSpecGaps -v`
+- 预期: 迁移表覆盖 spec 全部规定转移
+- 实际: **6 项偏差行为级证实**（Next() 实测全为 ok=false）：① QUEUED/BLOCKED/RESUMING 等 9 个非终态收 pause 被拒——§9.7 明文「所有非终态均可进入 PAUSING」；② BLOCKED→PARTIAL 不存在——§5.1 L1348「等待审批期间授权到期或预算耗尽时允许迁移到 PARTIAL/STOPPING/FAILED」；③ **EXITING→RUNNING 无任何事件可达**——§5.1 L1336 图示明确「门禁发现新工作」回 RUNNING，缺此转移则退出门禁发现新工作时 Run 只能错误终结；④ RUNNING→COMPLETED 直达口径——§5.1 L1351「RUNNING/EXITING → COMPLETED 在同一逻辑事务」措辞含直达路径（口径解释项）
+- 结果: FAIL（实现符合自己的表，但表缺 spec 规定的转移）→ Q-15
+- 关联 bug: Q-15
+- 备注: 属性测试无法发现此类问题——它验证「实现符合 states.yaml」，不验证「states.yaml 符合 spec」。这正是人工对账的价值所在
+
 ---
 
 ## 代码质量审计（2026-11-16 首轮，随测试执行，Owner 指令新增）
@@ -361,6 +383,7 @@
 | Q-12 | 低 | cmd/gen-contracts/main.go goScalar/tsScalar/goType | 类型映射 default 分支**静默回退 string**：events.yaml/openapi.yaml 里类型拼错（如 `integre`）会静默生成 Go/TS string 字段，不报错——与 Q-7 同款「契约工具链静默吞错」模式 | default 分支改为返回错误（生成器响亮失败）；补一个拼错类型的负向用例。**复测（T-023）：已修复关闭**——三个映射函数均改 (string, error) 带上下文传播，负向测试 gen_test.go（拼错标量/Schema/数组元素类型均报错）随套件通过 |
 | Q-13 | 低 | internal/store/writer.go `Migrate()`/`DurableDB()` | 两者都要求「只能在 Start() 前调用/只给测试用」（注释声明），但**无运行期防护**：Start() 后调 Migrate() 会在 writer goroutine 正用 durable 连接时并发使用同一条连接（数据竞态）；DurableDB() 同理。当前唯一调用方（测试）用法正确，属于误用面问题 | Migrate() 加 started 守卫（atomic.Bool，已启动则报错）；DurableDB() 同样加守卫或改命名（DurableDBForTest）表明约束。**复测（T-028）：已修复关闭**——25affd7 加 started 守卫（Migrate 启动后报错、DurableDBForTest 启动后 panic、Start Swap 幂等）+ TestMigrateAfterStartRejected |
 | Q-14 | info | internal/store/writer.go `checkpoint()`、reader.go DSN | checkpoint 忽略 TRUNCATE 结果（读者忙时返回 busy 属正常，best-effort 可接受）；reader 的 query_only 连接上设 journal_mode(WAL) 是冗余（库已 WAL，只读连接改不了也不需要）——无害，知悉即可 | 保持现状可接受；后续若做 checkpoint 可观测再加日志。**复测（T-028）：已处置**——checkpoint best-effort 注释化；reader DSN 去掉冗余 journal_mode |
+| Q-15 | 中 | internal/control/states.yaml × spec §5.1/§9.7 | **迁移表缺 spec 规定的转移（T-030 行为级证实 6 项）**：① pause 仅 RUNNING 可入 PAUSING，§9.7 要求所有非终态（QUEUED/BLOCKED/RESUMING 等 9 态实测被拒）——用户暂停排队中的 Run 会被 ErrInvalid 拒绝；② BLOCKED→PARTIAL 缺失，§5.1 L1348 明文审批期到期允许 PARTIAL/STOPPING/FAILED；③ **EXITING→RUNNING 缺失（无对应事件）**，§5.1 L1336 门禁发现新工作须回 RUNNING——缺它则退出门禁循环断裂，EXITING 误成准终态；④ RUNNING→COMPLETED 直达口径待与 spec 确认（L1351）。属性测试检不出：它只验证实现符合 states.yaml，不验证表符合 spec | states.yaml 补转移行（pause 扩 from 列表、加 partial 的 BLOCKED 来源、加 exit_reopen: EXITING→RUNNING 事件）→ `go generate` → 补 TestKeyTransitions 锚点。趁 controller 调用方尚未依赖「拒绝」行为时改最便宜；③是功能缺口，①②是用户可感行为偏差 |
 
 **做得好的（保持）**：迁移器版本记录与 DDL 同事务（原子）；建表按依赖序 + Down 严格逆序；Day 02 复合外键设计纯净（无冗余单列 FK）；全部查询参数化；t.TempDir/t.Cleanup 测试卫生；PRAGMA 走 DSN（per-connection，不踩连接池坑）；注释全程带 spec 引用可回溯；BUG-001 教训已固化进 .gitignore 注释。
 
