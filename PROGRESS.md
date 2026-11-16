@@ -11,11 +11,13 @@
 
 ## 当前位置
 
-**Day 01 —— 项目骨架 + 领域类型 ✅（已提交 `860272b`，待推送）**
-下一步：**Day 02（数据模型 Part1 + Store 骨架）**，等待 Owner 批准后开始。
+**Day 02 —— 数据模型 Part1 + Store 骨架 ✅（已提交 `7461cb0`）**
+下一步：**Day 03（数据模型 Part2，补齐其余表 + 待硬化外键）**，等待 Owner 批准后开始。
 
 Claude 开发前自检：`TESTING.md` 顶部「未解决 bug」= 无。
-待推送说明：`snag` 仓库已建，但本会话 GitHub 凭据暂无该仓库访问权，需 Owner 在 Claude GitHub App 可访问仓库列表中加入 `snag`，之后由 Claude 推送 `860272b`。
+⚠️ Day 02 验证口径：因开发会话无网络(装不了 sqlite 驱动)，`go build/vet/test` 默认全绿、
+真库测试 SKIP；**连真实 SQLite 执行迁移 + 乐观锁用例尚未验证**，需 `go get modernc.org/sqlite`
+后 `go test -tags sqlite_modernc ./internal/store/...`——交给本地测试模型（有网）或联网后补验。
 
 ---
 
@@ -24,7 +26,7 @@ Claude 开发前自检：`TESTING.md` 顶部「未解决 bug」= 无。
 | Day | 里程碑 | 模块 | 状态 | Commit | 日期 | 备注 |
 |---|---|---|---|---|---|---|
 | 01 | M0 | 项目骨架 + 领域类型（domain） | ✅已完成 | `860272b` | 2026-11-16 | go build/vet/test 全绿；8/8 测试；枚举对照 §43.5 齐全。待推送 |
-| 02 | M0 | 数据模型 Part1 + Store 骨架 | ⬜未开始 |  |  |  |
+| 02 | M0 | 数据模型 Part1 + Store 骨架 | ✅已完成 | `7461cb0` | 2026-11-16 | 13表+手写Store+内置迁移器；build/vet/test(skip)绿；真库待 -tags sqlite_modernc 验证(缺网络驱动) |
 | 03 | M0 | 数据模型 Part2（补齐全部表） | ⬜未开始 |  |  |  |
 | 04 | M0 | 四大契约冻结 + JCS 规范化（最关键的一天） | ⬜未开始 |  |  |  |
 | 05 | M0 | 事件注册表 + OpenAPI 骨架 + Mock Target | ⬜未开始 |  |  |  |
@@ -77,4 +79,6 @@ Claude 开发前自检：`TESTING.md` 顶部「未解决 bug」= 无。
 > 每天追加一条：做了什么、遇到什么、下一步。
 
 - **2026-11-16** — Day 0：创建仓库 `xiaofan1235/snag`（private），推送两份大文档 + 46 个日计划 + 路线图 + PROGRESS/TESTING 骨架。等待批准开始 Day 01。
-- **2026-11-16** — Day 01 完成（提交 `860272b`）：`go mod init pentagent` + §3 目录骨架；`internal/domain` 全套零依赖领域类型（states/ids/errors + 12 个聚合照 §4.1）；UUIDv7 自实现（时间有序+同毫秒单调），避免引入外部库以适配无网络构建；8 组单元测试全绿，枚举对照 §43.5 逐一核对无缺。阻塞：本会话 GitHub 凭据暂无 `snag` 访问权，`860272b` 待 Owner 授权后推送。下一步：Day 02。
+- **2026-11-16** — Day 01 完成（提交 `860272b`）：`go mod init pentagent` + §3 目录骨架；`internal/domain` 全套零依赖领域类型（states/ids/errors + 12 个聚合照 §4.1）；UUIDv7 自实现（时间有序+同毫秒单调），避免引入外部库以适配无网络构建；8 组单元测试全绿，枚举对照 §43.5 逐一核对无缺。下一步：Day 02。（已推送）
+- **2026-11-16** — Owner 将 `snag` 设为公开并授权推送；`860272b`+进度提交已成功 push 到 GitHub（main）。「Claude 开发并推送」流程打通。Owner 授权：后续如有更优实现可偏离开发文档，但须在 commit/PROGRESS/TESTING 留痕以便本地测试模型对照。
+- **2026-11-16** — Day 02 完成（提交 `7461cb0`）：13 张核心表(§4.1) + 手写 Store 查询层 + 内置 goose 格式迁移器。**三处有意偏离**(无网适配，已记 README/commit)：sqlc→手写查询；goose CLI→内置迁移器；sqlite 驱动→build tag 可选接入(默认零外部依赖)。build/vet/test 默认全绿，真库测试 SKIP。**未验证项**：连真实 SQLite 的迁移+乐观锁用例，需联网 `go get modernc.org/sqlite` 后 `-tags sqlite_modernc` 跑，待本地模型或联网补验。删除空占位目录 api//tests/。下一步：Day 03。
