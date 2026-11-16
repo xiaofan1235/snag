@@ -179,6 +179,17 @@
 - 结果: PASS（不阻断 Day 03 验收）
 - 关联 bug: 无
 
+### T-014  [PASS]
+- 时间戳: 2026-11-16T10:19:00Z
+- 对应: Day 03 质量审计修复复测（c2635d6 harden(store)，Q-1~Q-6） / 里程碑 M0
+- 测试项: 质量审计 6 项修复独立复测：diff 逐项核对 + 双套件实跑 + 新增测试内容核验
+- 命令: `go build ./... && go vet ./... && go test ./... -count=1` + `go test -tags sqlite_modernc ./internal/store/... -count=1 -v` + `git diff e17d402..c2635d6` 人工审读
+- 预期: 全绿；Q-1 复合外键生效且有测试证明；Q-2 剥尾注+缺标记报错；Q-3 整型子单位；Q-4 索引齐；Q-6 测试增强落地
+- 实际: 默认套件全绿（含 3 个迁移器白盒测试，默认模式即跑）；真库 12/12 PASS（新增 TestCrossRunFindingLinkCompositeFK 正反向用例、foreign_key_check、存在但不拥有的 run 用例全部落地）。Q-1 复合外键 `(linked_run_id, linked_finding_id)->findings(run_id,id)` 已建且实测拒绝脏链接；Q-3 `amount` INTEGER/micro_usd + `cost_micro` INTEGER；Q-4 补 10 索引；Q-5 README 不变量三条入「code review 盯住」
+- 结果: PASS
+- 关联 bug: 无
+- 备注: 一条约定备忘（info）：本次修复以就地编辑 0002 方式落实，当前无持久库所以安全；Day 06 出现持久库后已推送迁移应视为不可变，修正走新增迁移文件
+
 ---
 
 ## 代码质量审计（2026-11-16 首轮，随测试执行，Owner 指令新增）
@@ -196,13 +207,15 @@
 
 **做得好的（保持）**：迁移器版本记录与 DDL 同事务（原子）；建表按依赖序 + Down 严格逆序；Day 02 复合外键设计纯净（无冗余单列 FK）；全部查询参数化；t.TempDir/t.Cleanup 测试卫生；PRAGMA 走 DSN（per-connection，不踩连接池坑）；注释全程带 spec 引用可回溯；BUG-001 教训已固化进 .gitignore 注释。
 
-**开发方回应（Q-1~Q-6，已全部采纳并修复，commit `c2635d6`，待复测）**：逐条核对后无站得住的反驳，全部认同。均在 Day 04「契约冻结」前完成，避免把已知问题冻进契约。
+**开发方回应（Q-1~Q-6，已全部采纳并修复，commit `c2635d6`，已复测关闭）**：逐条核对后无站得住的反驳，全部认同。均在 Day 04「契约冻结」前完成，避免把已知问题冻进契约。
 - Q-1 ✅ 补复合外键 `(linked_run_id, linked_finding_id)->findings(run_id,id)` + 新测试 `TestCrossRunFindingLinkCompositeFK`（脏链接被拒）。确为疏漏：原「不加 FK」注释只适用 identity_id 类注册引用。
 - Q-2 ✅ `splitStatements` 先剥行内尾注再切 `;`；`extractUp` 缺 `-- +goose Up` 改报错 + 内部白盒测试 `migrate_internal_test.go`（默认模式即跑）。
 - Q-3 ✅ 去浮点：`budget_ledger.amount`→INTEGER(子单位)、`model_calls.cost`→`cost_micro` INTEGER(微美元)。同意偏中。
 - Q-4 ✅ 补齐所列 FK/热点列索引。
 - Q-5 ✅ README 记 UTC-文本时间不变量。
 - Q-6 ✅ 跨 Run 测试加「存在但不拥有」用例；`TestAllTablesExist` 末尾加 `PRAGMA foreign_key_check`。
+
+**复测结论（T-014，2026-11-16T10:15Z）：Q-1~Q-6 全部修复确认，关闭。** 新增测试质量核验：`TestCrossRunFindingLinkCompositeFK` 含正向用例（合法跨 Run 关联应被接受）+ 反向用例（脏链接拒绝）——双向都测，写法正确；迁移器白盒测试默认模式即跑。一条约定备忘（info，非问题）：本次以**就地编辑 0002_full.sql** 方式落实修复，当前无持久库（测试库全是临时目录）所以安全；Day 06 出现持久库后，已推送迁移文件应视为不可变，后续 schema 修正一律走新增迁移文件。
 验证：默认 build/vet/test 全绿（+3 迁移器内部测试）；`-tags sqlite_modernc` 真库 11/11 PASS。请复测确认。
 
 ---
