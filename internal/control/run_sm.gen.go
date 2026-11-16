@@ -33,19 +33,19 @@ var AllEvents = []Event{EventPreflight, EventEnqueue, EventStart, EventAdmit, Ev
 // AllStates 是全部状态。
 var AllStates = []domain.RunState{domain.RunDraft, domain.RunPreflight, domain.RunQueued, domain.RunRunning, domain.RunPausing, domain.RunPaused, domain.RunResuming, domain.RunBlocked, domain.RunExiting, domain.RunStopping, domain.RunCompleted, domain.RunPartial, domain.RunStopped, domain.RunFailed}
 
-var terminalSet = map[domain.RunState]bool{
+var runTerminalSet = map[domain.RunState]bool{
 	domain.RunCompleted: true,
 	domain.RunPartial:   true,
 	domain.RunStopped:   true,
 	domain.RunFailed:    true,
 }
 
-type smKey struct {
+type runSmKey struct {
 	from domain.RunState
 	ev   Event
 }
 
-var runTransitions = map[smKey]domain.RunState{
+var runTransitions = map[runSmKey]domain.RunState{
 	{domain.RunDraft, EventPreflight}:      domain.RunPreflight,
 	{domain.RunPreflight, EventEnqueue}:    domain.RunQueued,
 	{domain.RunPreflight, EventStart}:      domain.RunRunning,
@@ -94,9 +94,9 @@ var runTransitions = map[smKey]domain.RunState{
 }
 
 // Next 返回 (from, ev) 的下一状态。未登记的组合返回 (from, false) —— 显式拒绝，
-// 不 panic、不卡原态。调用方据 ok=false 返回 ErrInvalid（见 run_controller.go）。
+// 不 panic、不卡原态。调用方据 ok=false 返回 ErrInvalid（见 *_controller.go）。
 func Next(from domain.RunState, ev Event) (domain.RunState, bool) {
-	to, ok := runTransitions[smKey{from, ev}]
+	to, ok := runTransitions[runSmKey{from, ev}]
 	if !ok {
 		return from, false
 	}
@@ -104,4 +104,4 @@ func Next(from domain.RunState, ev Event) (domain.RunState, bool) {
 }
 
 // IsTerminal 报告状态是否为终态（无出边）。
-func IsTerminal(s domain.RunState) bool { return terminalSet[s] }
+func IsTerminal(s domain.RunState) bool { return runTerminalSet[s] }

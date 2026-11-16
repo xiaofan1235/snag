@@ -1,0 +1,74 @@
+# job_states.yaml —— Job 状态机声明表（§5.2 Job 状态 + §4.1 取消 + §31 C3 对账超时）。
+# 由 gen.go 生成 job_sm.gen.go / job_states.md。改这里后 `go generate ./internal/control/`。
+#
+# 【设计说明 / 对测试模型】§5.2 给出的是**状态清单 + RECONCILING 的文字语义**，没有给显式边图
+# （不同于 §5.1 Run 有完整迁移图）。因此下列边是**按 Job 生命周期语义设计**的，锚点如下，便于交叉核对：
+#   - 正常链：PENDING→READY→CLAIMED→RUNNING→SUBMITTED→VERIFYING→DONE；审批插入 WAITING_APPROVAL。
+#   - RECONCILING（§5.2 枢纽）：RUNNING 在“租约过期/提交时存在未决 OUTCOME_UNKNOWN 动作”时先入 RECONCILING，
+#     冻结新 Claim（本表不给 claim←RECONCILING 边即为冻结）；对账完成 → RETRYING（可安全重试）
+#     或携 cancel_code=OUTCOME_UNRESOLVED 终态化（§5.2 原文）。
+#   - 终态选择：OUTCOME_UNRESOLVED 是 **cancel_code**（§43.5/§4.1），cancel_code 属取消语义，
+#     故 reconcile_unresolved 落 **CANCELLED**（与其它 cancel_code 一致）；真·引擎故障走 fail→FAILED。
+#   - 取消（§4.1“只影响未来动作”）：cancel 可从所有非终态进入，**但有意排除 RECONCILING**
+#     ——对账未完成不得被 cancel 抢先终态化（§5.2“对账完成后才能终态化”）。这与 Run 表“STOPPING 排除 pause”同构。
+#   - fail 从所有非终态（含 RECONCILING，容灾）进入 FAILED。
+version: 1
+initial: PENDING
+
+states:
+  - PENDING
+  - BLOCKED
+  - READY
+  - CLAIMED
+  - RUNNING
+  - RECONCILING
+  - WAITING_APPROVAL
+  - SUBMITTED
+  - VERIFYING
+  - DONE
+  - RETRYING
+  - CANCELLED
+  - FAILED
+
+terminal:
+  - DONE
+  - CANCELLED
+  - FAILED
+
+transitions:
+  # --- 就绪/依赖门禁 ---
+  - { event: ready,   from: PENDING, to: READY }    # 依赖满足，可被领取
+  - { event: block,   from: PENDING, to: BLOCKED }  # 依赖/资源未就绪
+  - { event: unblock, from: BLOCKED, to: READY }
+
+  # --- 领取与执行 ---
+  - { event: claim, from: READY,   to: CLAIMED }  # agent seat 领取（RECONCILING 无此入边 = 冻结新 Claim）
+  - { event: run,   from: CLAIMED, to: RUNNING }  # attempt 开始
+
+  # --- 红线审批（动作需审批时挂起 Job） ---
+  - { event: need_approval, from: RUNNING,          to: WAITING_APPROVAL }
+  - { event: approve,       from: WAITING_APPROVAL, to: RUNNING }
+
+  # --- 提交与验证 ---
+  - { event: submit,       from: RUNNING,   to: SUBMITTED }  # attempt 完成、提交结果
+  - { event: verify,       from: SUBMITTED, to: VERIFYING }
+  - { event: done,         from: VERIFYING, to: DONE }       # 验证通过（终态）
+  - { event: verify_retry, from: VERIFYING, to: RETRYING }   # 验证不过，回退重试
+
+  # --- RETRYING 回到可领取 ---
+  - { event: retry, from: RETRYING, to: READY }
+
+  # --- RECONCILING（§5.2 崩溃一致性枢纽） ---
+  - { event: reconcile,            from: RUNNING,     to: RECONCILING } # 存在未决 OUTCOME_UNKNOWN
+  - { event: reconcile_retry,      from: RECONCILING, to: RETRYING }    # 对账完成，可安全重试
+  - { event: reconcile_unresolved, from: RECONCILING, to: CANCELLED }   # 对账超时/不可解 → cancel_code=OUTCOME_UNRESOLVED
+
+  # --- 取消（§4.1，只影响未来动作）：所有非终态，**排除 RECONCILING** ---
+  - event: cancel
+    to: CANCELLED
+    from: [PENDING, BLOCKED, READY, CLAIMED, RUNNING, WAITING_APPROVAL, SUBMITTED, VERIFYING, RETRYING]
+
+  # --- 故障：所有非终态（含 RECONCILING，容灾）---
+  - event: fail
+    to: FAILED
+    from: [PENDING, BLOCKED, READY, CLAIMED, RUNNING, RECONCILING, WAITING_APPROVAL, SUBMITTED, VERIFYING, RETRYING]
