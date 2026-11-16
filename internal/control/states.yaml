@@ -1,0 +1,62 @@
+# states.yaml —— Run 状态机的声明式迁移表（§5.1 Run 状态、§1④ 迁移表代码生成）。
+#
+# run_sm.gen.go 与 run_states.md 由 gen.go 从本文件生成（go:generate）。
+# 设计不变量：
+#   - 迁移表**完整**：任意 (状态, 事件) 要么是已登记迁移，要么走显式拒绝（Next 返回 ok=false），
+#     绝不 panic、不卡原态（§5.1 完整迁移表、Day 07 §4）。
+#   - Stop/Fail 必须能从**所有非终态**进入（§5.1）。
+#   - BLOCKED 恢复统一经 RESUMING（§5.1）。
+#   - EXITING 是冻结态：进它要冻结新 Job/Permit/PlanPatch/Surface（语义由 controller 落实）。
+#   - 状态机是纯函数 (状态,事件)->状态；准入/资源等 Guard 由 controller 决定「发哪个事件」
+#     （如 start vs enqueue），不混进状态机，保持可穷举、可属性测试。
+
+version: 1
+initial: DRAFT
+
+# 全部状态（§5.1 + QUEUED §33）。
+states:
+  - DRAFT
+  - PREFLIGHT
+  - QUEUED
+  - RUNNING
+  - PAUSING
+  - PAUSED
+  - RESUMING
+  - BLOCKED
+  - EXITING
+  - STOPPING
+  - COMPLETED
+  - PARTIAL
+  - STOPPED
+  - FAILED
+
+# 终态：无出边。
+terminal:
+  - COMPLETED
+  - PARTIAL
+  - STOPPED
+  - FAILED
+
+# 迁移：event × from -> to。from 可为单个状态或状态列表。
+transitions:
+  - { event: preflight,     from: DRAFT,      to: PREFLIGHT }
+  - { event: enqueue,       from: PREFLIGHT,  to: QUEUED }     # 资源忙：controller 据 guard 决定
+  - { event: start,         from: PREFLIGHT,  to: RUNNING }
+  - { event: admit,         from: QUEUED,     to: RUNNING }    # 资源释放，准入
+  - { event: pause,         from: RUNNING,    to: PAUSING }
+  - { event: pause_drained, from: PAUSING,    to: PAUSED }
+  - { event: resume,        from: PAUSED,     to: RESUMING }
+  - { event: resume_ready,  from: RESUMING,   to: RUNNING }
+  - { event: block,         from: RUNNING,    to: BLOCKED }    # 需重认证/等审批
+  - { event: unblock,       from: BLOCKED,    to: RESUMING }   # 恢复统一经 RESUMING
+  - { event: exit,          from: RUNNING,    to: EXITING }    # 目标达成/优雅退出
+  - { event: complete,      from: EXITING,    to: COMPLETED }
+  - { event: partial,       from: EXITING,    to: PARTIAL }
+  - { event: stop_drained,  from: STOPPING,   to: STOPPED }
+  # Stop/Fail：从所有非终态进入。
+  - event: stop
+    from: [DRAFT, PREFLIGHT, QUEUED, RUNNING, PAUSING, PAUSED, RESUMING, BLOCKED, EXITING, STOPPING]
+    to: STOPPING
+  - event: fail
+    from: [DRAFT, PREFLIGHT, QUEUED, RUNNING, PAUSING, PAUSED, RESUMING, BLOCKED, EXITING, STOPPING]
+    to: FAILED
