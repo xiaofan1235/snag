@@ -3107,6 +3107,7 @@ command.completed
 operation.updated
 directive.updated
 exchange.created
+external_message.updated
 evidence.created
 asset.updated
 discovery.updated

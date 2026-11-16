@@ -13,7 +13,8 @@ import (
 // contracts_test.go —— Day 05 §7 契约测试（§23 M0：文档注册的每个事件/路由都有 Schema）。
 // 命令覆盖：go test ./api/...
 
-// expectedEvents 是 §15.6 列出的全部事件（49 个）。events.yaml 必须不多不少地覆盖它们。
+// expectedEvents 是 §15.6 列出的全部事件（50 个，含 Q-11 补登的 external_message.updated）。
+// events.yaml 必须不多不少地覆盖它们。
 var expectedEvents = []string{
 	"run.updated", "run.exit_blocked", "preflight.updated",
 	"job.created", "job.updated", "attempt.updated", "agent.progress", "activity.created",
