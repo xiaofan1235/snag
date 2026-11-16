@@ -1,0 +1,19 @@
+# 统一文本文件行尾为 LF，避免 Windows 检出/回推产生 CRLF（见 TESTING.md T-005 建议）。
+# 这样无论开发方还是 Windows 测试机，仓库内行尾一致，gofmt 不再因 CRLF 假报。
+* text=auto eol=lf
+
+*.go   text eol=lf
+*.sql  text eol=lf
+*.md   text eol=lf
+*.yaml text eol=lf
+*.yml  text eol=lf
+*.json text eol=lf
+*.sh   text eol=lf
+
+# 二进制：不做行尾转换
+*.png     binary
+*.jpg     binary
+*.gif     binary
+*.pdf     binary
+*.zip     binary
+*.bundle  binary

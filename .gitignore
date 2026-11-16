@@ -3,7 +3,12 @@
 *.exe
 *.test
 *.out
-coverage.*
+# 覆盖率产物——只列具体文件名，切勿用 coverage.*（会误伤 coverage.go 源码，见 BUG-001）
+coverage.out
+coverage.html
+coverage.txt
+*.cover
+*.coverprofile
 
 # Node / Web
 node_modules/
