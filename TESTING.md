@@ -36,7 +36,7 @@
 
 | Bug 编号 | 发现时间 | 对应 Day | 现象 | 严重度 | 状态 |
 |---|---|---|---|---|---|
-| BUG-001 | 2026-11-16T08:55Z | Day 01 | `internal/domain/coverage.go` 整个文件缺失（未提交），`domain_test.go:219` 引用 `domain.CoverageCell` 导致 `go vet` / `go test` 编译失败，8 个测试用例全部被阻断。`go build ./...` 不编译测试文件所以能过——**PROGRESS.md 记录的"go build/vet/test 全绿；8/8 测试"与仓库实际不符**（推测开发本地存在 coverage.go，推送时漏提交）。day-01 §2 文件清单明确含 `coverage.go`，§43.3 权威表清单含 `coverage_cells`。修复：补 `internal/domain/coverage.go`（`CoverageCell` struct，字段照 §4.1 `coverage_cells`：run_id/module_key/endpoint_id/evidence_ids/status 等），无需改测试 | 高（阻断 Day 01 全部测试验收） | ✅已修复待复测（d9d9c62） |
+| —— | —— | —— | *(暂无)* | —— | —— |
 
 ---
 
@@ -93,7 +93,50 @@
 - 实际: 列出全部 17 个 .go 文件——经 `git ls-files --eol` 核查为 `i/lf w/crlf`：仓库提交的是 LF，本测试机 `core.autocrlf=true` 检出转 CRLF 的假象，gofmt diff 为整文件纯行尾差异，非真实格式问题
 - 结果: PASS（判定为测试环境假象，不算 bug）
 - 关联 bug: 无
-- 备注: 建议（非 bug）：仓库根加 `.gitattributes`（`*.go text eol=lf`），可消除所有 Windows 检出机器上的该假象，也防止未来有人在 Windows 上回推 CRLF
+- 备注: 建议（非 bug）：仓库根加 `.gitattributes`（`*.go text eol=lf`），可消除所有 Windows 检出机器上的该假象，也防止未来有人在 Windows 上回推 CRLF。（已在 d9d9c62 采纳落地）
+
+### T-006  [PASS]
+- 时间戳: 2026-11-16T09:30:00Z
+- 对应: Day 01（BUG-001 修复 d9d9c62 复测，原 T-002） / 里程碑 M0
+- 测试项: `go vet ./...` 复测
+- 命令: `go vet ./...`
+- 预期: 干净通过（CoverageCell 已定义）
+- 实际: 干净通过（VET_OK）
+- 结果: PASS
+- 关联 bug: BUG-001（关闭）
+
+### T-007  [PASS]
+- 时间戳: 2026-11-16T09:30:30Z
+- 对应: Day 01（BUG-001 修复 d9d9c62 复测，原 T-003） / 里程碑 M0
+- 测试项: `go test ./internal/domain/...` 全绿复测——Day 01 核心验收恢复
+- 命令: `go test ./internal/domain/... -count=1`
+- 预期: 8 个测试函数全部通过（此前 0 个可执行）
+- 实际: `ok pentagent/internal/domain 0.710s`，8/8 通过
+- 结果: PASS
+- 关联 bug: BUG-001（关闭）
+- 备注: 补充核对修复文件质量：`coverage.go` 的 CoverageCell 字段与 §4.1 `coverage_cells`（L1053-1068）11/11 逐字段一致
+
+### T-008  [PASS]
+- 时间戳: 2026-11-16T09:31:00Z
+- 对应: Day 02（dev-plan/day-02.md §7，提交 9c108c7/7461cb0） / 里程碑 M0
+- 测试项: Day 02 默认套件：全仓库 build + vet + test（零外部依赖路径）
+- 命令: `go build ./... && go vet ./... && go test ./... -count=1`
+- 预期: 全部通过；store 真库用例在无驱动时按设计 SKIP
+- 实际: cmd/pentagent、cmd/pentagentd 无测试文件；`ok pentagent/internal/domain`；`ok pentagent/internal/store`（真库用例按设计跳过，见 T-009）
+- 结果: PASS
+- 关联 bug: 无
+- 备注: day-02 §7 原命令 `goose -dir migrations ...` 因开发方无网适配改为内置迁移器（README 已记录三处有意偏离），测试口径相应适配为 T-009
+
+### T-009  [PASS]
+- 时间戳: 2026-11-16T09:33:00Z
+- 对应: Day 02（dev-plan/day-02.md §7 核心验收 + PROGRESS「未验证项：连真实 SQLite 的迁移+乐观锁用例」） / 里程碑 M0
+- 测试项: 真库补验——联网安装 sqlite 驱动跑 `-tags sqlite_modernc` 真连库测试（开发会话无网未验，测试机补验）
+- 命令: `go get modernc.org/sqlite && go test -tags sqlite_modernc ./internal/store/... -count=1 -v`
+- 预期: 迁移建表成功；乐观锁语义成立——用旧 revision 条件更新影响 0 行（day-02 §7 核心断言）
+- 实际: modernc.org/sqlite v1.62.0 安装成功；TestMigrateCreatesTables PASS、TestRunOptimisticLock PASS、TestGetRunNotFound PASS、TestJobInsertGet PASS，4/4 全绿
+- 结果: PASS
+- 关联 bug: 无
+- 备注: 测试后已还原 go.mod / 删除 go.sum，仓库零足迹；驱动留存于本机模块缓存，下次复跑直接 `go get` 即可
 
 ---
 
@@ -101,4 +144,4 @@
 
 | Bug 编号 | 修复时间 | 修复 Commit | 复测结果 |
 |---|---|---|---|
-| BUG-001 | 2026-11-16 | `d9d9c62` | 待本地模型复测（复测 T-002 `go vet ./...`、T-003 `go test ./internal/domain/...`）。开发方已在全新 clone 验证：coverage.go 入库，build/vet/test 全绿。根因：`.gitignore` 的 `coverage.*` 误伤源码，已改为具体产物名并补提交；另采纳 T-005 建议加 `.gitattributes`(行尾 LF) |
+| BUG-001 | 2026-11-16 | `d9d9c62` | ✅ 复测通过（T-006/T-007，2026-11-16T09:30Z）：vet 干净、domain 8/8 全绿，Day 01 验收恢复；coverage.go 字段与 §4.1 coverage_cells 11/11 一致。根因：`.gitignore` 的 `coverage.*` 误伤源码，已改为具体产物名并补提交；另采纳 T-005 建议加 `.gitattributes`(行尾 LF) |
