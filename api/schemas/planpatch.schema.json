@@ -12,6 +12,7 @@
       "type": "array",
       "items": {
         "type": "object",
+        "description": "M0 有意只约束 op 枚举，不约束各 op 的载荷字段（Q-10）；实现各 op 时用 if/then 或 oneOf 按 op 收口载荷，防止载荷漂移。PlanPatch 经 PlanCompiler 应用，非 digest 锚，故宽松风险低。",
         "required": ["op"],
         "properties": {
           "op": {

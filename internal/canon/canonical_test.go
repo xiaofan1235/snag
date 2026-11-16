@@ -147,3 +147,30 @@ func TestSchemasValidAndInvalid(t *testing.T) {
 		}
 	}
 }
+
+// Q-7/Q-8：契约冻结日收口——红线开关名拼错必须被拒；垃圾授权日期必须被拒。
+func TestPolicyHardening(t *testing.T) {
+	policy, err := schemas.FS.ReadFile(schemas.Policy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := func(auth, actions string) string {
+		return `{"version":1,"target":{"hosts":[{"value":"a.test","match":"exact"}]},` +
+			`"authorization":` + auth + `,"network":{"require_proxy":true},"actions":` + actions + `}`
+	}
+	goodAuth := `{"valid_from":"2026-11-16T00:00:00Z","valid_until":"2026-11-17T00:00:00Z"}`
+
+	// Q-7：拼错的开关名 write_mod（实为 write_mode）必须被拒，而非静默放行。
+	if err := canon.ValidateAgainst(policy, []byte(base(goodAuth, `{"write_mod":"deny"}`))); err == nil {
+		t.Error("Q-7：拼错的红线开关名应被拒（additionalProperties=false）")
+	}
+	// 正确开关名应通过。
+	if err := canon.ValidateAgainst(policy, []byte(base(goodAuth, `{"write_mode":"deny"}`))); err != nil {
+		t.Errorf("正确开关名不应被拒: %v", err)
+	}
+	// Q-8：垃圾授权日期必须被拒（format 断言已开启）。
+	badAuth := `{"valid_from":"not-a-date","valid_until":"2026-11-17T00:00:00Z"}`
+	if err := canon.ValidateAgainst(policy, []byte(base(badAuth, `{"write_mode":"deny"}`))); err == nil {
+		t.Error("Q-8：垃圾 date-time 授权窗应被 format 断言拒绝")
+	}
+}

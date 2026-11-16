@@ -78,14 +78,14 @@
     },
     "actions": {
       "type": "object",
-      "description": "默认全 deny（§9.1）。write/real_user_data/external_notifications/financial/internal/persistence。",
+      "description": "默认全 deny（§9.1）。红线开关只认这 6 个键，拼错必须响亮失败（Q-7：additionalProperties=false，不静默吞）。",
       "patternProperties": {
         "^(write_mode|real_user_data|external_notifications|financial_effects|internal_network|persistence)$": {
           "type": "string",
           "enum": ["deny", "allow", "require_approval"]
         }
       },
-      "additionalProperties": true
+      "additionalProperties": false
     },
     "ai": {
       "type": "object",

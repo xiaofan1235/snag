@@ -66,6 +66,11 @@ func DigestJSON(jsonBytes []byte) (string, error) {
 // 注意（§47.1）：传入对象**不应包含时间字段**——时间只用于比较，不入内容 digest，
 // 以免时间扰动哈希使“同内容对时不对”。整数请用 Go 整型传入（json.Marshal 保精度），
 // 避免先经 map[string]any 使大整数退化为 float64。
+//
+// Q-9（RFC 8785 数字语义，务必遵守）：JCS 数字按 ECMAScript double 归一，**绝对值 ≥ 2^53
+// 的整数会被舍入**（如 2^53+1 塌缩为 2^53），两个不同大数可能得到相同 digest。因此
+// **digest 载荷里的数值字段必须 < 2^53**；更大的量（ID、纳秒时间戳 ~1.7e18、大计数器）
+// 一律用字符串承载，不要作为 JSON number 放进被哈希的对象。系统 ID 用 UUIDv7 字符串即满足此约束。
 func Digest(obj any) (string, error) {
 	b, err := json.Marshal(obj)
 	if err != nil {
@@ -87,6 +92,7 @@ func ValidateAgainst(schemaBytes, instanceBytes []byte) error {
 		return fmt.Errorf("canon: parse schema: %w", err)
 	}
 	c := jsonschema.NewCompiler()
+	c.AssertFormat() // Q-8：默认 draft 2020-12 视 format 为注释；显式开启断言，使 date-time 等真正校验
 	const loc = "mem://schema.json"
 	if err := c.AddResource(loc, schemaDoc); err != nil {
 		return fmt.Errorf("canon: add schema: %w", err)
