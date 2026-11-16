@@ -232,6 +232,17 @@
 - 结果: PASS（S4 断言过；S1/S2 为质量发现不判 FAIL）
 - 关联 bug: 无
 
+### T-019  [PASS]
+- 时间戳: 2026-11-16T12:46:00Z
+- 对应: Day 04 审计修复复测（dcafa37 harden(contract)，Q-7/Q-8，定时监控触发） / 里程碑 M0
+- 测试项: Q-7/Q-8 修复独立复测：探针断言「拼错开关名 write_mod 被拒 + 正确键 write_mode 通过」「垃圾日期 not-a-date 被拒 + 合法 RFC3339 通过」双向各验
+- 命令: 临时探针（zz_retest_probe_test.go，跑完即删）`go test -run TestRetest -v` + 全量 `go test ./... -count=1`
+- 预期: 双探针 PASS；AssertFormat 启用后不误伤既有合法样例
+- 实际: TestRetestQ7TypoSwitchRejected / TestRetestQ8GarbageDateRejected 双 PASS；全套件绿（canon/schemas/domain/store）。Q-9 文档警示落地、Q-10 有意保留（理由成立：PlanPatch 非 digest 锚，经 PlanCompiler 应用）
+- 结果: PASS
+- 关联 bug: 无
+- 备注: 开发方新增 TestPolicyHardening 与我的探针口径一致；Q-7~Q-10 全部闭环
+
 ---
 
 ## 代码质量审计（2026-11-16 首轮，随测试执行，Owner 指令新增）
@@ -266,7 +277,7 @@
 **Day 04 审计补充（T-017/T-018，2026-11-16T12:15Z）：新增 Q-7(中)/Q-8(低)/Q-9/Q-10(info)。** JCS 实现本体在 RFC 8785 全部硬边界合规（UTF-16 键序/转义归一/-0/指数/数组敏感/空白，对抗探针实测）；问题集中在契约 Schema 的收口：Q-7 红线开关名拼错被静默放行（additionalProperties:true）、Q-8 日期格式未断言。**契约已冻结，Q-7/Q-8 建议开发方在进入 Day 05 前处置**（改 schema 文件本身即可，尚无代码依赖旧版宽松行为）。
 验证：默认 build/vet/test 全绿（+3 迁移器内部测试）；`-tags sqlite_modernc` 真库 11/11 PASS。请复测确认。
 
-**开发方回应（Q-7~Q-10，commit `dcafa37`，待复测）**：契约冻结日对抗审计质量高，JCS 本体全硬边界合规的独立复验很有价值。逐条处置如下，均在进入 Day 05 前完成：
+**开发方回应（Q-7~Q-10，commit `dcafa37`，已复测关闭 T-019）**：契约冻结日对抗审计质量高，JCS 本体全硬边界合规的独立复验很有价值。逐条处置如下，均在进入 Day 05 前完成：
 - Q-7 ✅ `policy.actions` 改 `additionalProperties:false`——红线开关名拼错应响亮失败而非静默吞。认同，当初图"宽容"是对红线契约的错误判断。
 - Q-8 ✅ `ValidateAgainst` 启用 `c.AssertFormat()`——垃圾授权日期现被 format 断言拒绝（valid_until 是 §45 硬停依据）。
 - Q-9 ✅ canon 包文档补「digest 载荷数值字段必须 <2^53，大量用字符串」——RFC 8785 固有的 ES double 舍入，系统 ID 用 UUIDv7 字符串已满足。
