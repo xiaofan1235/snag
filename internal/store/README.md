@@ -25,14 +25,21 @@ go build -tags sqlite_modernc ./...                   # 运行时带真驱动
 
 > ✅ 已验证（2026-11-16，go 1.23 + modernc v1.38.2）：`go test -tags sqlite_modernc ./internal/store/...` 全 PASS——13 表迁移、乐观锁（旧 revision→ErrConflict）、NotFound、Job 读写均在真实 SQLite 上通过。
 
-## 待硬化（Day 03 补齐表后加外键）
+## 跨表引用：Day 02 遗留列的硬化策略（Day 03 决定）
 
-0001_core.sql 中以下列当前是普通 TEXT（指向 Day 03 才创建的表），Day 03 要补 FK：
+Day 03（0002_full.sql）已建出被引用的表（identities / modules / endpoints / approvals /
+action_permits / execution_receipts / proxy_leases / agent_seats 等）。但 0001_core.sql 里
+以下列**仍保持普通 TEXT、不加 FK**，这是**有意决定**而非遗漏：
 
 - `jobs.claimed_by`、`agent_sessions.{attempt_id,seat_id}`
 - `actions.{identity_id,approval_id,permit_id,execution_receipt_id}`
 - `evidence.proxy_lease_id`
 - `hypotheses.module_id`、`coverage_cells.{module_id,endpoint_id}`
+
+原因：SQLite **不能对已存在的列 ALTER 添加外键**，只能「建新表→拷数据→删旧→改名」地重建整张表。
+对 6~7 张核心表做重建迁移风险高、收益低（库里本就无数据，且运行期 `foreign_keys=ON`）。
+因此这些引用的**归属校验放在 Store/应用层**；若将来确需 DB 级强制，再写一支专门的硬化迁移做表重建。
+新表（0002）之间与对 Day 02 表的 FK 则已就位（见 0002_full.sql 依赖顺序建表 + 复合外键）。
 
 ## 现有方法
 
