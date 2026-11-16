@@ -372,6 +372,27 @@
 - 关联 bug: 无
 - 备注: Q-15 关闭。STOPPING-pause 排除是开发方报备的对 §9.7 字面的有意偏差，理由（Stop 不可逆）成立——记录在案，如 Owner 有异议可要求 spec 侧措辞澄清
 
+### T-032  [PASS]
+- 时间戳: 2026-11-16T15:02:00Z
+- 对应: Day 08（dev-plan/day-08.md §7，提交 0e721aa，定时监控触发） / 里程碑 M1
+- 测试项: Day 08 默认套件 + 真库套件 + 生成物同步 + 新迁移核验
+- 命令: `go build/vet/test ./... -count=1` + `go test -tags sqlite_modernc ./internal/...` + `go generate ./...` 后 git status 检查
+- 预期: 全绿；0003 走新迁移文件（不改 0001/0002）
+- 实际: 全部通过；`go generate` 后工作区干净；0003_reconcile.sql 只做 ALTER ADD COLUMN（reconcile_deadline），文件头写明迁移不可变约定 ✅；墙钟 vs monotonic 的选型理由（deadline 需跨进程存活）成立
+- 结果: PASS
+- 关联 bug: 无
+
+### T-033  [PASS]
+- 时间戳: 2026-11-16T15:05:00Z
+- 对应: Day 08（job_states.yaml × spec §5.2/§4.1 独立对账 + RECONCILING 枢纽行为探针） / 里程碑 M1
+- 测试项: 13 态对照 §5.2 清单；RECONCILING 语义（冻结 Claim/双出口/cancel 排除/fail 容灾/终态吸收）；§7 验收路径（超时→OUTCOME_UNRESOLVED→run_partial_reasons）实现与断言核验
+- 命令: 静态对照 + 临时探针（zz_probe_test.go，已删）`go test -run TestProbeReconcilingHub -v` + controller/测试代码审读
+- 预期: 全部符合 §5.2 文字语义
+- 实际: 13/13 态一致；探针 6 断言全过（claim 冻结/cancel 拒绝/fail 放行/reconcile_retry→RETRYING/reconcile_unresolved→CANCELLED/终态吸收）；TestJobReconcileTimeoutTerminalizes 断言到 cancel_code 与 run_partial_reasons 的 code+entity_ref 字段级 ✅。开发方本次在 YAML 预埋「对测试模型」设计说明（Q-15 后流程改进，好现象）
+- 结果: PASS
+- 关联 bug: 无
+- 备注: ① 审批拒绝/过期的 Job 出口未定义（spec 侧空白）→ Q-16；② 租约净过期（无未决动作）的重排路径 = RUNNING→reconcile→RECONCILING→reconcile_retry→RETRYING→retry→READY，绕行成立（表意自洽）；③ verify_retry 直达 RETRYING 的口径（§5.2「存在未决→先 RECONCILING」的触发锚在 RUNNING 侧）记录在案
+
 ---
 
 ## 代码质量审计（2026-11-16 首轮，随测试执行，Owner 指令新增）
@@ -395,6 +416,7 @@
 | Q-13 | 低 | internal/store/writer.go `Migrate()`/`DurableDB()` | 两者都要求「只能在 Start() 前调用/只给测试用」（注释声明），但**无运行期防护**：Start() 后调 Migrate() 会在 writer goroutine 正用 durable 连接时并发使用同一条连接（数据竞态）；DurableDB() 同理。当前唯一调用方（测试）用法正确，属于误用面问题 | Migrate() 加 started 守卫（atomic.Bool，已启动则报错）；DurableDB() 同样加守卫或改命名（DurableDBForTest）表明约束。**复测（T-028）：已修复关闭**——25affd7 加 started 守卫（Migrate 启动后报错、DurableDBForTest 启动后 panic、Start Swap 幂等）+ TestMigrateAfterStartRejected |
 | Q-14 | info | internal/store/writer.go `checkpoint()`、reader.go DSN | checkpoint 忽略 TRUNCATE 结果（读者忙时返回 busy 属正常，best-effort 可接受）；reader 的 query_only 连接上设 journal_mode(WAL) 是冗余（库已 WAL，只读连接改不了也不需要）——无害，知悉即可 | 保持现状可接受；后续若做 checkpoint 可观测再加日志。**复测（T-028）：已处置**——checkpoint best-effort 注释化；reader DSN 去掉冗余 journal_mode |
 | Q-15 | 中 | internal/control/states.yaml × spec §5.1/§9.7 | **迁移表缺 spec 规定的转移（T-030 行为级证实 6 项）**：① pause 仅 RUNNING 可入 PAUSING，§9.7 要求所有非终态（QUEUED/BLOCKED/RESUMING 等 9 态实测被拒）——用户暂停排队中的 Run 会被 ErrInvalid 拒绝；② BLOCKED→PARTIAL 缺失，§5.1 L1348 明文审批期到期允许 PARTIAL/STOPPING/FAILED；③ **EXITING→RUNNING 缺失（无对应事件）**，§5.1 L1336 门禁发现新工作须回 RUNNING——缺它则退出门禁循环断裂，EXITING 误成准终态；④ RUNNING→COMPLETED 直达口径待与 spec 确认（L1351）。属性测试检不出：它只验证实现符合 states.yaml，不验证表符合 spec | states.yaml 补转移行（pause 扩 from 列表、加 partial 的 BLOCKED 来源、加 exit_reopen: EXITING→RUNNING 事件）→ `go generate` → 补 TestKeyTransitions 锚点。趁 controller 调用方尚未依赖「拒绝」行为时改最便宜；③是功能缺口，①②是用户可感行为偏差。**复测（T-031）：已修复关闭**——68e8f27 迁移 34→45：pause 扩至 9 非终态（STOPPING 报备排除：stop 不可逆）、BLOCKED/RUNNING→PARTIAL、reopen: EXITING→RUNNING；④ 采纳「EXITING 单路径 + controller 原子性」解读（图示本为单路径，成立） |
+| Q-16 | 低 | internal/control/job_states.yaml WAITING_APPROVAL | 审批**被拒或过期**后 Job 的出口未定义：SM 只有 approve→RUNNING 一条出边，DENIED/EXPIRED 的审批对应 Job 只能靠用户 cancel 或 fail 终结。spec 侧也空白（只有 L3085 deny API 端点，无 Job 去向语义）——审批流 Day 15/17 要用 | Day 15 前补：SM 加 denied: WAITING_APPROVAL→CANCELLED（cancel_code=PLANNER_SUPERSEDED 或专用码）与 expired 边，或 spec 侧先定义语义；属 spec 空白而非实现违规 |
 
 **做得好的（保持）**：迁移器版本记录与 DDL 同事务（原子）；建表按依赖序 + Down 严格逆序；Day 02 复合外键设计纯净（无冗余单列 FK）；全部查询参数化；t.TempDir/t.Cleanup 测试卫生；PRAGMA 走 DSN（per-connection，不踩连接池坑）；注释全程带 spec 引用可回溯；BUG-001 教训已固化进 .gitignore 注释。
 
