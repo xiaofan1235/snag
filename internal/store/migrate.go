@@ -42,7 +42,11 @@ func Migrate(db *sql.DB) error {
 		if err != nil {
 			return err
 		}
-		if err := applyOne(db, version, extractUp(string(raw))); err != nil {
+		up, err := extractUp(string(raw))
+		if err != nil {
+			return fmt.Errorf("apply %s: %w", name, err)
+		}
+		if err := applyOne(db, version, up); err != nil {
 			return fmt.Errorf("apply %s: %w", name, err)
 		}
 	}
@@ -95,23 +99,29 @@ func applyOne(db *sql.DB, version, upSQL string) error {
 }
 
 // extractUp 取 `-- +goose Up` 与 `-- +goose Down` 之间的内容。
-func extractUp(s string) string {
-	up := s
-	if i := strings.Index(up, "-- +goose Up"); i >= 0 {
-		up = up[i+len("-- +goose Up"):]
+// 缺 `-- +goose Up` 标记则报错，避免把整文件（含 Down 段）当 Up 执行（Q-2）。
+func extractUp(s string) (string, error) {
+	i := strings.Index(s, "-- +goose Up")
+	if i < 0 {
+		return "", fmt.Errorf("缺少 '-- +goose Up' 标记")
 	}
+	up := s[i+len("-- +goose Up"):]
 	if j := strings.Index(up, "-- +goose Down"); j >= 0 {
 		up = up[:j]
 	}
-	return up
+	return up, nil
 }
 
-// splitStatements 去掉整行注释后按 ; 切分为单条语句（本项目 DDL 内无 ; 字面量）。
+// splitStatements 先剥掉行内 -- 尾注（含整行注释）再按 ; 切分为单条语句。
+// 先剥注释再切，避免尾注里的 ; 把语句切坏（Q-2）；本项目 DDL 无含 -- 的字符串字面量，
+// 故按每行首个 -- 截断是安全的。
 func splitStatements(block string) []string {
 	var b strings.Builder
 	for _, line := range strings.Split(block, "\n") {
-		t := strings.TrimSpace(line)
-		if t == "" || strings.HasPrefix(t, "--") {
+		if i := strings.Index(line, "--"); i >= 0 {
+			line = line[:i]
+		}
+		if strings.TrimSpace(line) == "" {
 			continue
 		}
 		b.WriteString(line)

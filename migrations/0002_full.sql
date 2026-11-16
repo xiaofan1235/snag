@@ -273,8 +273,8 @@ CREATE TABLE budget_ledger (
     run_id     TEXT NOT NULL REFERENCES runs(id),
     scope      TEXT NOT NULL,                 -- run/job/model...
     kind       TEXT NOT NULL,                 -- RESERVED/SETTLED/RELEASED
-    amount     REAL NOT NULL DEFAULT 0,
-    unit       TEXT,                          -- tokens/requests/seconds/usd
+    amount     INTEGER NOT NULL DEFAULT 0,    -- 整数最小单位；分数单位(USD)按子单位存(unit=micro_usd)。Q-3：避免浮点累计误差使 RESERVED≠SETTLED
+    unit       TEXT,                          -- tokens/requests/seconds/micro_usd
     ref_type   TEXT,
     ref_id     TEXT,
     created_at TEXT NOT NULL
@@ -334,7 +334,7 @@ CREATE TABLE model_calls (
     prompt_tokens     INTEGER NOT NULL DEFAULT 0,
     completion_tokens INTEGER NOT NULL DEFAULT 0,
     total_tokens      INTEGER NOT NULL DEFAULT 0,
-    cost              REAL NOT NULL DEFAULT 0,
+    cost_micro        INTEGER NOT NULL DEFAULT 0,  -- 成本：微美元(1e-6 USD)整数，避免浮点累计误差（Q-3）
     state             TEXT NOT NULL,
     started_at        TEXT,
     completed_at      TEXT
@@ -658,6 +658,9 @@ CREATE TABLE identity_auth_flows (
 );
 
 -- cross_run_finding_links —— 跨 Run Finding 关联（§47；关联而非共享证据）。
+-- Q-1：被关联端用复合外键 (linked_run_id, linked_finding_id)->findings(run_id,id) 强制
+-- 「跨 Run 引用一律复合外键校验」(§43.3 不变量)。此表本身就是跨 Run 关联，必须 FK——
+-- 区别于 identity_id 等注册表引用（目标行可能合法地尚不存在，故那些才留普通 TEXT）。
 CREATE TABLE cross_run_finding_links (
     id                TEXT PRIMARY KEY,
     finding_id        TEXT NOT NULL REFERENCES findings(id),
@@ -665,8 +668,10 @@ CREATE TABLE cross_run_finding_links (
     linked_finding_id TEXT NOT NULL,
     linked_run_id     TEXT NOT NULL,
     relation          TEXT,
-    created_at        TEXT NOT NULL
+    created_at        TEXT NOT NULL,
+    FOREIGN KEY (linked_run_id, linked_finding_id) REFERENCES findings(run_id, id)
 );
+CREATE INDEX idx_crfl_finding ON cross_run_finding_links(finding_id);
 
 -- audit_chain —— 哈希链审计（§47；篡改可证）。prev_hash 链接前一条。
 CREATE TABLE audit_chain (
@@ -715,6 +720,18 @@ CREATE TABLE endpoint_modules (
     confidence  REAL NOT NULL DEFAULT 0,
     PRIMARY KEY (endpoint_id, module_id)
 );
+
+-- Q-4：FK / 热点列索引（DROP TABLE 会自动连带删索引，Down 段无需单列）。
+CREATE INDEX idx_user_directives_run ON user_directives(run_id);
+CREATE INDEX idx_operations_run      ON operations(run_id);
+CREATE INDEX idx_tool_recovery_action ON tool_recovery_attempts(action_id);
+CREATE INDEX idx_memory_outbox_unpub ON memory_outbox(published, memory_session_id);
+CREATE INDEX idx_memory_links_session ON memory_links(memory_session_id);
+CREATE INDEX idx_memory_gaps_session  ON memory_gaps(memory_session_id);
+CREATE INDEX idx_jobdeps_dependson    ON job_dependencies(depends_on_job_id);
+CREATE INDEX idx_ev_citations_evidence ON evidence_citations(evidence_id);
+CREATE INDEX idx_request_caps_action  ON request_capabilities(action_id);
+CREATE INDEX idx_request_caps_attempt ON request_capabilities(attempt_id);
 
 -- +goose Down
 DROP TABLE IF EXISTS endpoint_modules;

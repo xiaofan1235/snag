@@ -49,3 +49,13 @@ action_permits / execution_receipts / proxy_leases / agent_seats 等）。但 00
 - 迁移：`Migrate(db)` / `(*Store).MigrateUp()`
 
 更多表的读写随后续开发天补齐。
+
+## 约定与不变量（code review 盯住）
+
+- **时间列一律 TEXT，RFC3339Nano，UTC**（Q-5）。「字典序 = 时间序」成立的前提是**所有写入都经
+  Store 层的 `dbT()`**（强制 `.UTC()`）。后续任何模块（events/outbox 发布器等）**不得直写 SQL 用本地时区**，
+  否则排序会坏。守住「Store 是唯一 SQL 入口」（§0.2）即可。
+- **金额/成本用整数子单位,不用浮点**（Q-3）：`budget_ledger.amount`（INTEGER，分数单位如 `micro_usd`）、
+  `model_calls.cost_micro`（微美元整数）。避免浮点累计误差使 RESERVED≠SETTLED。
+- **跨 Run 引用一律复合外键**（§43.3 不变量）：`finding_evidence`、`cross_run_finding_links` 均已复合 FK。
+  注册表类引用（`identity_id` 等，目标行可能合法地尚不存在）才留普通 TEXT + 应用层校验。

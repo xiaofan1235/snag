@@ -69,6 +69,15 @@ func TestAllTablesExist(t *testing.T) {
 	if count < len(allTables) {
 		t.Errorf("实际表数 %d < 清单 %d", count, len(allTables))
 	}
+	// Q-6：迁移级外键一致性白检——foreign_key_check 不应返回任何违规行。
+	rows, err := st.DB().Query(`PRAGMA foreign_key_check`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	if rows.Next() {
+		t.Error("PRAGMA foreign_key_check 发现违规：迁移后 schema 外键应一致")
+	}
 }
 
 // commands: UNIQUE(actor_id, idempotency_key)——重复幂等键必须报错（§4.2 / Day 03 DoD）。
@@ -147,11 +156,59 @@ func TestFindingEvidenceCrossRunRejected(t *testing.T) {
 		string(r.ID), fid, eid, "baseline"); err != nil {
 		t.Fatalf("同 Run 引用应成功: %v", err)
 	}
-	// 跨 Run 引用：用一个不存在于本 Run 的 run_id 组合，复合外键应拒绝。
+	// 跨 Run 引用：用一个不存在的 run_id 组合，复合外键应拒绝。
 	otherRun := string(domain.NewID())
 	if _, err := st.DB().ExecContext(ctx,
 		`INSERT INTO finding_evidence (run_id, finding_id, evidence_id, role) VALUES (?,?,?,?)`,
 		otherRun, fid, eid, "variant"); err == nil {
 		t.Fatal("跨 Run 的 finding_evidence 引用应被复合外键拒绝，却成功了")
+	}
+	// Q-6 更严：造一个"存在但不拥有该 finding/evidence"的 run，复合外键仍应拒绝（证明配对语义）。
+	r2 := domain.NewRun(ws.ID, "run-b", "tester", "d")
+	if err := st.InsertRun(ctx, r2); err != nil {
+		t.Fatalf("insert run2: %v", err)
+	}
+	if _, err := st.DB().ExecContext(ctx,
+		`INSERT INTO finding_evidence (run_id, finding_id, evidence_id, role) VALUES (?,?,?,?)`,
+		string(r2.ID), fid, eid, "variant"); err == nil {
+		t.Fatal("用存在但不拥有该 finding 的 run 引用，复合外键应拒绝")
+	}
+}
+
+// Q-1：cross_run_finding_links 被关联端的复合外键——指向不存在的 (linked_run_id, linked_finding_id) 应拒绝。
+func TestCrossRunFindingLinkCompositeFK(t *testing.T) {
+	st := openTestStore(t)
+	ctx := context.Background()
+	now := "2026-11-16T00:00:00Z"
+
+	ws := domain.NewWorkspace("acme", "mpk-"+string(domain.NewID()))
+	_ = st.InsertWorkspace(ctx, ws)
+	// 两个 Run，各一个 finding。
+	rA := domain.NewRun(ws.ID, "run-a", "t", "d")
+	rB := domain.NewRun(ws.ID, "run-b", "t", "d")
+	_ = st.InsertRun(ctx, rA)
+	_ = st.InsertRun(ctx, rB)
+	fA := string(domain.NewID())
+	fB := string(domain.NewID())
+	for _, x := range []struct{ id, run string }{{fA, string(rA.ID)}, {fB, string(rB.ID)}} {
+		if _, err := st.DB().ExecContext(ctx,
+			`INSERT INTO findings (id, run_id, state, created_at, updated_at) VALUES (?,?,?,?,?)`,
+			x.id, x.run, "CANDIDATE", now, now); err != nil {
+			t.Fatalf("insert finding: %v", err)
+		}
+	}
+	// 合法关联：rA 的 fA 关联到 rB 的 fB（复合外键命中 findings(run_id,id)）。
+	if _, err := st.DB().ExecContext(ctx,
+		`INSERT INTO cross_run_finding_links (id, finding_id, run_id, linked_finding_id, linked_run_id, relation, created_at)
+		 VALUES (?,?,?,?,?,?,?)`,
+		string(domain.NewID()), fA, string(rA.ID), fB, string(rB.ID), "duplicate", now); err != nil {
+		t.Fatalf("合法跨 Run 关联应成功: %v", err)
+	}
+	// 脏链接：linked 指向不存在的 (run, finding) 组合——复合外键应拒绝。
+	if _, err := st.DB().ExecContext(ctx,
+		`INSERT INTO cross_run_finding_links (id, finding_id, run_id, linked_finding_id, linked_run_id, relation, created_at)
+		 VALUES (?,?,?,?,?,?,?)`,
+		string(domain.NewID()), fA, string(rA.ID), string(domain.NewID()), string(domain.NewID()), "duplicate", now); err == nil {
+		t.Fatal("指向不存在 Finding 的跨 Run 链接应被复合外键拒绝")
 	}
 }
