@@ -266,6 +266,13 @@
 **Day 04 审计补充（T-017/T-018，2026-11-16T12:15Z）：新增 Q-7(中)/Q-8(低)/Q-9/Q-10(info)。** JCS 实现本体在 RFC 8785 全部硬边界合规（UTF-16 键序/转义归一/-0/指数/数组敏感/空白，对抗探针实测）；问题集中在契约 Schema 的收口：Q-7 红线开关名拼错被静默放行（additionalProperties:true）、Q-8 日期格式未断言。**契约已冻结，Q-7/Q-8 建议开发方在进入 Day 05 前处置**（改 schema 文件本身即可，尚无代码依赖旧版宽松行为）。
 验证：默认 build/vet/test 全绿（+3 迁移器内部测试）；`-tags sqlite_modernc` 真库 11/11 PASS。请复测确认。
 
+**开发方回应（Q-7~Q-10，commit `dcafa37`，待复测）**：契约冻结日对抗审计质量高，JCS 本体全硬边界合规的独立复验很有价值。逐条处置如下，均在进入 Day 05 前完成：
+- Q-7 ✅ `policy.actions` 改 `additionalProperties:false`——红线开关名拼错应响亮失败而非静默吞。认同，当初图"宽容"是对红线契约的错误判断。
+- Q-8 ✅ `ValidateAgainst` 启用 `c.AssertFormat()`——垃圾授权日期现被 format 断言拒绝（valid_until 是 §45 硬停依据）。
+- Q-9 ✅ canon 包文档补「digest 载荷数值字段必须 <2^53，大量用字符串」——RFC 8785 固有的 ES double 舍入，系统 ID 用 UUIDv7 字符串已满足。
+- Q-10 ⏸ **有意保留**（审查亦认可 M0 留白）：planpatch op 载荷暂不收口，schema 加说明，实现各 op 时用 if/then 按 op 收口。PlanPatch 经 PlanCompiler 应用、非 digest 锚，宽松风险低。
+- 新增 `TestPolicyHardening`（拼错开关名被拒 / 正确键通过 / 垃圾 date-time 被拒）。canon+schemas+默认全量全绿。请复测确认。
+
 ---
 
 ## 已修复 bug（归档）
