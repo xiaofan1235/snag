@@ -294,7 +294,39 @@
 - 实际: contracts_test.go:16 注释已改「50 个，含 Q-11 补登的 external_message.updated」；spec §15.6 补登行在位；全套件绿。登记链 spec→yaml→Go→TS 全部 50 对齐
 - 结果: PASS
 - 关联 bug: 无
-- 备注: Q-11 关闭。测试方工具修正备案：本测试方的事件提取正则 `[a-z]+\.` 匹配不了首段带下划线的事件名（external_message），T-021 的对账方法已随之修正——后续对账用完整名单 diff 而非行首正则
+- 备注: Q-11 关闭。测试方工具修正备案：本测试方的的事件提取正则 `[a-z]+\.` 匹配不了首段带下划线的事件名（external_message），T-021 的对账方法已随之修正——后续对账用完整名单 diff 而非行首正则
+
+### T-025  [PASS]
+- 时间戳: 2026-11-16T13:50:00Z
+- 对应: Day 06（dev-plan/day-06.md §7，提交 bacae41，定时监控触发） / 里程碑 M1 起步
+- 测试项: Day 06 默认套件
+- 命令: `go build ./... && go vet ./... && go test ./... -count=1`
+- 预期: 全绿
+- 实际: 全绿（api/schemas/gen-contracts/mocktarget/canon/domain/store）
+- 结果: PASS
+- 关联 bug: 无
+
+### T-026  [PASS]
+- 时间戳: 2026-11-16T13:52:00Z
+- 对应: Day 06（§7 验收：3 Worker × 1000 事件无 SQLITE_BUSY + 数据完整） / 里程碑 M1
+- 测试项: 真库全套（不带 -race）+ 环境限制记录
+- 命令: `go test -tags sqlite_modernc ./internal/store/... -count=1 -v`
+- 预期: 14/14 PASS，含 TestWriterConcurrencyNoBusy（无 BUSY、事件数 3×1000、revision 累加正确）
+- 实际: 14/14 PASS（新增 2 项 writer 测试 + 既有 12 项回归）
+- 结果: PASS
+- 关联 bug: 无
+- 备注: **-race 环境限制**：本测试机无 C 编译器（gcc/mingw 缺失），`go test -race` 需 cgo 无法执行——开发方自报「-race 全绿」在本机**不可独立复现**。已在 T-027 用行为级探针补位（故障隔离/幂等/并发读写），内存竞态检测仍缺独立验证。建议：开发方注明其 -race 运行平台，或后续 CI（Linux）跑 -race 锁定
+
+### T-027  [PASS]
+- 时间戳: 2026-11-16T13:56:00Z
+- 对应: Day 06（测试方对抗探针，补偿 -race 不可用） / 里程碑 M1
+- 测试项: durable 连接语义（synchronous=FULL/journal=wal）、group-commit 故障隔离（4 goroutine × 100 轮「1 合法 + 1 必失败」混发，合法 400 条须全落库且失败命令确实报错）、Close 双重幂等、写中并发读
+- 命令: 临时探针（internal/store/zz_day06_probe_test.go，跑完即删）`go test -tags sqlite_modernc -run TestProbe -v`
+- 预期: 4/4 PASS
+- 实际: 4/4 PASS——durable=2(FULL)+wal 确认；SAVEPOINT 故障隔离在真实争用下成立（dup-key 恰 1 条、合法 400/400）；Close 幂等；并发读写无错误、终态 500 条精确
+- 结果: PASS
+- 关联 bug: 无
+- 备注: 探针 D 首跑失败是探针自身 bug（漏插 runs 行触发 events 外键拒绝、且错误被丢弃），修正后通过——writer/reader 实现无恙
 
 ---
 
@@ -316,6 +348,8 @@
 | Q-10 | info | api/schemas 多处 | 宽松点：planpatch op items 无 additionalProperties:false 且 op 载荷未约束（实测任意字段放行）；policy methods.endpoint_rules items 无约束；runtime.max_cost 为空 schema `{}` | M0 冻结日的有意留白可接受；后续扩展 op 载荷时注意收口，防止载荷漂移进 digest 锚 |
 | Q-11 | 低 | docs spec §27.5(L4613) × §15.6 | **spec 内部不一致**：§27.5 声称 `external_message.updated`「已登记于 15.6」，§15.6 实无此事件（49 个里没有）。开发方实现忠实跟随 §15.6（五方对账 49/49 一致，实现无误）。§27.5 的多窗口消息/Handoff 功能要用这个事件 | 契约新鲜期决策便宜：要么 §15.6+events.yaml 补第 50 个事件（重跑 gen-contracts），要么改 §27.5 措辞并给 Day 12+ 留跟踪项。需 Owner 拍板。**复测（T-023/T-024）：已修复关闭**——fff046f 向前补齐第 50 事件（实现侧五方同步），bdc091e 补 spec §15.6 登记行 + 测试注释 49→50，登记链 spec→yaml→生成物全部对齐 |
 | Q-12 | 低 | cmd/gen-contracts/main.go goScalar/tsScalar/goType | 类型映射 default 分支**静默回退 string**：events.yaml/openapi.yaml 里类型拼错（如 `integre`）会静默生成 Go/TS string 字段，不报错——与 Q-7 同款「契约工具链静默吞错」模式 | default 分支改为返回错误（生成器响亮失败）；补一个拼错类型的负向用例。**复测（T-023）：已修复关闭**——三个映射函数均改 (string, error) 带上下文传播，负向测试 gen_test.go（拼错标量/Schema/数组元素类型均报错）随套件通过 |
+| Q-13 | 低 | internal/store/writer.go `Migrate()`/`DurableDB()` | 两者都要求「只能在 Start() 前调用/只给测试用」（注释声明），但**无运行期防护**：Start() 后调 Migrate() 会在 writer goroutine 正用 durable 连接时并发使用同一条连接（数据竞态）；DurableDB() 同理。当前唯一调用方（测试）用法正确，属于误用面问题 | Migrate() 加 started 守卫（atomic.Bool，已启动则报错）；DurableDB() 同样加守卫或改命名（DurableDBForTest）表明约束 |
+| Q-14 | info | internal/store/writer.go `checkpoint()`、reader.go DSN | checkpoint 忽略 TRUNCATE 结果（读者忙时返回 busy 属正常，best-effort 可接受）；reader 的 query_only 连接上设 journal_mode(WAL) 是冗余（库已 WAL，只读连接改不了也不需要）——无害，知悉即可 | 保持现状可接受；后续若做 checkpoint 可观测再加日志 |
 
 **做得好的（保持）**：迁移器版本记录与 DDL 同事务（原子）；建表按依赖序 + Down 严格逆序；Day 02 复合外键设计纯净（无冗余单列 FK）；全部查询参数化；t.TempDir/t.Cleanup 测试卫生；PRAGMA 走 DSN（per-connection，不踩连接池坑）；注释全程带 spec 引用可回溯；BUG-001 教训已固化进 .gitignore 注释。
 
