@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://snag.dev/schemas/action.schema.json",
+  "title": "ActionProposal",
+  "description": "动作提议契约（§4.1 actions、§17 Permit、§21 Receipt）。canonical_action_digest 的输入对象（§47.1：红线/审批/去重的锚）。",
+  "type": "object",
+  "required": ["tool_name", "action", "identity_id", "risk_class", "idempotency_class"],
+  "properties": {
+    "tool_name": { "type": "string", "minLength": 1 },
+    "action": {
+      "type": "object",
+      "description": "工具相关载荷（如 http.request 的 method/url/headers/body_ref）。"
+    },
+    "identity_id": { "type": "string", "minLength": 1 },
+    "risk_class": {
+      "type": "string",
+      "enum": ["read", "probe", "write", "destructive"]
+    },
+    "idempotency_class": {
+      "type": "string",
+      "enum": ["idempotent", "non_idempotent"]
+    },
+    "idempotency_key": { "type": "string" },
+    "expected_record_count": { "type": "integer", "minimum": 0 }
+  },
+  "additionalProperties": true
+}

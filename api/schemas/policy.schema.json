@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://snag.dev/schemas/policy.schema.json",
+  "title": "Policy",
+  "description": "授权策略契约（§9.1）。红线判定的权威输入；冻结于 M0。",
+  "type": "object",
+  "required": ["version", "target", "authorization", "network", "actions"],
+  "properties": {
+    "version": { "type": "integer", "const": 1 },
+    "target": {
+      "type": "object",
+      "required": ["hosts"],
+      "properties": {
+        "hosts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["value", "match"],
+            "properties": {
+              "value": { "type": "string", "minLength": 1 },
+              "match": { "type": "string", "enum": ["exact", "wildcard"] }
+            },
+            "additionalProperties": false
+          }
+        },
+        "allow_subdomains": { "type": "boolean" },
+        "schemes": { "type": "array", "items": { "type": "string", "enum": ["http", "https"] } },
+        "ports": { "type": "array", "items": { "type": "integer", "minimum": 1, "maximum": 65535 } },
+        "redirect_policy": { "type": "string", "enum": ["reauthorize", "follow_in_scope", "deny"] }
+      }
+    },
+    "authorization": {
+      "type": "object",
+      "required": ["valid_from", "valid_until"],
+      "properties": {
+        "valid_from": { "type": "string", "format": "date-time" },
+        "valid_until": { "type": "string", "format": "date-time" },
+        "reference": { "type": "string" }
+      }
+    },
+    "methods": {
+      "type": "object",
+      "properties": {
+        "unverified_endpoints": { "type": "array", "items": { "type": "string" } },
+        "default": { "type": "array", "items": { "type": "string" } },
+        "endpoint_rules": { "type": "array" }
+      }
+    },
+    "network": {
+      "type": "object",
+      "required": ["require_proxy"],
+      "properties": {
+        "require_proxy": { "type": "boolean" },
+        "proxy_provider": { "type": "string" },
+        "allow_direct_fallback": { "type": "boolean" },
+        "min_interval_ms_per_scope": { "type": "integer", "minimum": 0 },
+        "same_endpoint_interval_ms": { "type": "integer", "minimum": 0 },
+        "max_target_workers": { "type": "integer", "minimum": 1 },
+        "max_requests": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "identities": {
+      "type": "object",
+      "properties": {
+        "allowed": { "type": "array", "items": { "type": "string" } },
+        "allowed_tenants": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "properties": {
+        "idor_other_records": { "type": "integer", "minimum": 0 },
+        "sensitive_evidence_records": { "type": "integer", "minimum": 0 },
+        "max_response_bytes": { "type": "integer", "minimum": 0 },
+        "max_download_bytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "actions": {
+      "type": "object",
+      "description": "默认全 deny（§9.1）。write/real_user_data/external_notifications/financial/internal/persistence。",
+      "patternProperties": {
+        "^(write_mode|real_user_data|external_notifications|financial_effects|internal_network|persistence)$": {
+          "type": "string",
+          "enum": ["deny", "allow", "require_approval"]
+        }
+      },
+      "additionalProperties": true
+    },
+    "ai": {
+      "type": "object",
+      "properties": {
+        "external_model_allowed": { "type": "boolean" },
+        "raw_response_to_model": { "type": "boolean" },
+        "secrets_to_model": { "type": "boolean" }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "properties": {
+        "max_duration_hours": { "type": "number", "minimum": 0 },
+        "max_cost": {},
+        "max_model_calls": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

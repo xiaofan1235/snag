@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://snag.dev/schemas/experiment.schema.json",
+  "title": "ExperimentSpec",
+  "description": "实验规格契约（§6.7 单变量；§44 序列/竞态为扩展）。Executor 可调下一步，但不能改身份上限/对象归属/预算/范围/风险等级。",
+  "type": "object",
+  "required": ["hypothesis_id", "required_evidence", "budget"],
+  "properties": {
+    "hypothesis_id": { "type": "string", "minLength": 1 },
+    "module_id": { "type": "string" },
+    "endpoint_ids": { "type": "array", "items": { "type": "string" } },
+    "identity_refs": { "type": "array", "items": { "type": "string" } },
+    "objective": { "type": "string" },
+    "baseline_evidence_ids": { "type": "array", "items": { "type": "string" } },
+    "variable": {
+      "type": "object",
+      "properties": {
+        "location": { "type": "string" },
+        "name": { "type": "string" },
+        "from": {},
+        "to": {}
+      }
+    },
+    "expected_observation": { "type": "string" },
+    "falsifier": { "type": "string" },
+    "stop_condition": { "type": "string" },
+    "required_evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": ["baseline", "variant", "ownership", "impact", "replay", "screenshot", "cleanup", "counterevidence"]
+      }
+    },
+    "tool_allowlist": { "type": "array", "items": { "type": "string" } },
+    "budget": {
+      "type": "object",
+      "required": ["max_requests", "max_duration_seconds"],
+      "properties": {
+        "max_requests": { "type": "integer", "minimum": 1 },
+        "max_model_steps": { "type": "integer", "minimum": 0 },
+        "max_duration_seconds": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}
