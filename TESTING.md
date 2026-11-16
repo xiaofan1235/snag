@@ -190,6 +190,48 @@
 - 关联 bug: 无
 - 备注: 一条约定备忘（info）：本次修复以就地编辑 0002 方式落实，当前无持久库所以安全；Day 06 出现持久库后已推送迁移应视为不可变，修正走新增迁移文件
 
+### T-015  [PASS]
+- 时间戳: 2026-11-16T12:05:00Z
+- 对应: Day 04（dev-plan/day-04.md §7，提交 504ae08） / 里程碑 M0
+- 测试项: Day 04 默认套件（canon + schemas 新包合入）
+- 命令: `go build ./... && go vet ./... && go test ./... -count=1`
+- 预期: 全绿
+- 实际: BUILD_OK / VET_OK；api/schemas ok、internal/canon ok、domain ok、store ok
+- 结果: PASS
+- 关联 bug: 无
+- 备注: 环境记录：本机拉 proxy.golang.org 持续 EOF，改用 `GOPROXY=https://goproxy.cn,direct` 下载 jcs/jsonschema 两依赖（命令级环境变量，未写配置）。开发方 go 指令钉 1.23、驱动钉 v1.38.2 的决策与实测一致
+
+### T-016  [PASS]
+- 时间戳: 2026-11-16T12:08:00Z
+- 对应: Day 04（§47.5「同内容对象在任意两处产生相同 digest」立身不变量） / 里程碑 M0
+- 测试项: 官方用例独立复跑：键序打乱（含嵌套）同 digest、数字 1/1.0/1e0 归一、Go 值与等价 JSON 同 digest、非法 JSON/重复键报错、RawSHA256 空串锚点、6 组 Schema 正反样例
+- 命令: `go test ./internal/canon/... ./api/schemas/... -count=1 -v`
+- 预期: 全部 PASS（不采信开发方自报）
+- 实际: 全部 PASS；canonical_test 5 个测试 + schema_test 编译自检 + 6 组正反样例全过
+- 结果: PASS
+- 关联 bug: 无
+
+### T-017  [PASS]
+- 时间戳: 2026-11-16T12:12:00Z
+- 对应: Day 04（契约冻结日加测：JCS RFC 8785 边界对抗验证，测试方自研探针） / 里程碑 M0
+- 测试项: 开发方用例未覆盖的 JCS 硬边界：UTF-16 码元键序（emoji vs U+FFFF）、\u 转义归一（A≡A、\u0009≡\t）、-0≡0、1e2/1E+2≡100、数组顺序敏感性、空白归一；大整数 2^53+1 行为记录
+- 命令: 临时探针测试文件（internal/canon/zz_probe_test.go，跑完即删未入库）`go test -run TestProbe -v`
+- 预期: RFC 8785 客观要求项全部成立
+- 实际: P1-P5 全过——UTF-16 码元排序正确（emoji 键排在 U+FFFF 前）、转义归一、-0/指数归一、数组顺序敏感、空白归一；P6 行为记录：2^53+1 规范化为 2^53（按 double 舍入，一致性成立，见 Q-9）
+- 结果: PASS
+- 关联 bug: 无
+- 备注: gowebpki/jcs 在最难搓错的边界上全部合规，选库决策验证有效
+
+### T-018  [PASS]
+- 时间戳: 2026-11-16T12:15:00Z
+- 对应: Day 04（契约 Schema 对抗探针） / 里程碑 M0
+- 测试项: Schema 疑点观察：S1 policy.actions 拼错开关名（write_mod）是否被拒；S2 垃圾日期串是否被 format 拒；S3 planpatch op 未知字段；S4 ports 越界拒绝（断言）
+- 命令: 临时探针（同上，已删）`go test -run "TestProbePolicy|TestProbePlanPatch" -v`
+- 预期: S4 必须拒；S1/S2/S3 观察行为记录审计
+- 实际: S4 PASS（ports 0/70000 均被拒）；**S1 确认：拼错的 action 开关被放行**（additionalProperties:true）→ Q-7；**S2 确认：垃圾日期串过契约层**（format 未断言）→ Q-8；S3 放行（M0 宽松设计）→ Q-10
+- 结果: PASS（S4 断言过；S1/S2 为质量发现不判 FAIL）
+- 关联 bug: 无
+
 ---
 
 ## 代码质量审计（2026-11-16 首轮，随测试执行，Owner 指令新增）
@@ -204,6 +246,10 @@
 | Q-4 | 低 | 0002_full.sql 多处 | 部分子表 FK/热路径列缺索引：user_directives.run_id、operations.run_id、tool_recovery_attempts.action_id、memory_outbox(published 扫描路径)、memory_links/gaps.memory_session_id、job_dependencies.depends_on_job_id（反向依赖查询）、evidence_citations.evidence_id、request_capabilities.action_id/attempt_id。当前量小无感，outbox 类表会持续增长 | 后续硬化日统一补一轮索引迁移 |
 | Q-5 | info | 全局 | 时间列全 TEXT RFC3339Nano(UTC)，字典序=时间序的前提是**所有写入**都走 store 层 dbT()（强制 UTC）。后续模块（events/outbox 发布器等）若直写 SQL 且用了本地时区，排序即坏 | 保持「Store 是唯一 SQL 入口」（§0.2 已声明）即可，code review 时盯住 |
 | Q-6 | info | store_full_test.go:121 | 跨 Run 测试用「不存在的 run」证明复合外键——schema 上成立（finding_evidence 无独立 run_id→runs FK，拒绝只能来自复合 FK），但更严格的版本是造一条「存在但不拥有该 finding 的 run」，顺带证明配对语义。另建议 TestAllTablesExist 末尾加 `PRAGMA foreign_key_check` 一行，迁移级 FK 一致性白捡 | 测试增强，非缺陷 |
+| Q-7 | 中 | api/schemas/policy.schema.json:88 `actions` | `additionalProperties:true` 放行拼错的开关名：`"write_mod":"deny"`（实为 write_mode）实测通过契约校验，被静默忽略后回落默认 deny——本例失败方向安全，但红线契约里的配置拼错应当**响亮失败**而非静默吞掉（T-018 S1 探针实测确认） | 契约冻结日是最后的廉价修复窗口：`actions` 改 `additionalProperties:false`（patternProperties 已枚举 6 个合法键）；或保留 true 但在 Policy 装载层拒绝未知键 |
+| Q-8 | 低 | api/schemas/policy.schema.json:37 + internal/canon/canonical.go:84 | `format:"date-time"` 未断言：santhosh-tekuri/jsonschema v6 默认不校验 format，垃圾串 `"not-a-date"` 实测通过（T-018 S2）。授权窗口 valid_until 是 §45 硬停依据，坏日期应在校验层就拒 | ValidateAgainst 编译 schema 时启用 format 断言（该库需显式开启），或应用层装载 Policy 时显式 time.Parse |
+| Q-9 | info | internal/canon（JCS 数字语义） | 实测 2^53+1 规范化为 9007199254740992（ECMAScript double 舍入，RFC 8785 规定行为）：>2^53 的整数在 digest 里会塌缩，两个不同大数可能同 digest。纳秒时间戳(~1.7e18)最易踩 | §47.1 已规定时间字段不入 digest（正确）；建议 canon 包文档补一句「digest 载荷数值字段必须 <2^53，更大数用字符串」，防后续模块误用 |
+| Q-10 | info | api/schemas 多处 | 宽松点：planpatch op items 无 additionalProperties:false 且 op 载荷未约束（实测任意字段放行）；policy methods.endpoint_rules items 无约束；runtime.max_cost 为空 schema `{}` | M0 冻结日的有意留白可接受；后续扩展 op 载荷时注意收口，防止载荷漂移进 digest 锚 |
 
 **做得好的（保持）**：迁移器版本记录与 DDL 同事务（原子）；建表按依赖序 + Down 严格逆序；Day 02 复合外键设计纯净（无冗余单列 FK）；全部查询参数化；t.TempDir/t.Cleanup 测试卫生；PRAGMA 走 DSN（per-connection，不踩连接池坑）；注释全程带 spec 引用可回溯；BUG-001 教训已固化进 .gitignore 注释。
 
@@ -216,6 +262,8 @@
 - Q-6 ✅ 跨 Run 测试加「存在但不拥有」用例；`TestAllTablesExist` 末尾加 `PRAGMA foreign_key_check`。
 
 **复测结论（T-014，2026-11-16T10:15Z）：Q-1~Q-6 全部修复确认，关闭。** 新增测试质量核验：`TestCrossRunFindingLinkCompositeFK` 含正向用例（合法跨 Run 关联应被接受）+ 反向用例（脏链接拒绝）——双向都测，写法正确；迁移器白盒测试默认模式即跑。一条约定备忘（info，非问题）：本次以**就地编辑 0002_full.sql** 方式落实修复，当前无持久库（测试库全是临时目录）所以安全；Day 06 出现持久库后，已推送迁移文件应视为不可变，后续 schema 修正一律走新增迁移文件。
+
+**Day 04 审计补充（T-017/T-018，2026-11-16T12:15Z）：新增 Q-7(中)/Q-8(低)/Q-9/Q-10(info)。** JCS 实现本体在 RFC 8785 全部硬边界合规（UTF-16 键序/转义归一/-0/指数/数组敏感/空白，对抗探针实测）；问题集中在契约 Schema 的收口：Q-7 红线开关名拼错被静默放行（additionalProperties:true）、Q-8 日期格式未断言。**契约已冻结，Q-7/Q-8 建议开发方在进入 Day 05 前处置**（改 schema 文件本身即可，尚无代码依赖旧版宽松行为）。
 验证：默认 build/vet/test 全绿（+3 迁移器内部测试）；`-tags sqlite_modernc` 真库 11/11 PASS。请复测确认。
 
 ---
