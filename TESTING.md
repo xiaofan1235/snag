@@ -138,6 +138,64 @@
 - 关联 bug: 无
 - 备注: 测试后已还原 go.mod / 删除 go.sum，仓库零足迹；驱动留存于本机模块缓存，下次复跑直接 `go get` 即可
 
+### T-010  [PASS]
+- 时间戳: 2026-11-16T09:52:00Z
+- 对应: Day 03（dev-plan/day-03.md §7，提交 b27ed58） / 里程碑 M0
+- 测试项: Day 03 默认套件（零驱动路径）
+- 命令: `go build ./... && go vet ./... && go test ./... -count=1`
+- 预期: 全绿；真库用例无驱动时按设计 SKIP
+- 实际: BUILD_OK / VET_OK / domain ok / store ok
+- 结果: PASS
+- 关联 bug: 无
+
+### T-011  [PASS]
+- 时间戳: 2026-11-16T09:53:00Z
+- 对应: Day 03（dev-plan/day-03.md §7 核心验收） / 里程碑 M0
+- 测试项: 真库全套：§43.3 全部表建出 + commands 幂等唯一 + external_messages 唯一 + 复合外键跨 Run 拒绝 + Day 02 回归
+- 命令: `go test -tags sqlite_modernc ./internal/store/... -count=1 -v`（go.mod 已由 b278425 正式接入 modernc.org/sqlite，本机直跑）
+- 预期: 8/8 PASS（开发方自报口径，独立复跑验证）
+- 实际: TestAllTablesExist / TestCommandsIdempotencyUnique / TestExternalMessagesUnique / TestFindingEvidenceCrossRunRejected + Day 02 四项回归，8/8 PASS，0.913s
+- 结果: PASS
+- 关联 bug: 无
+- 备注: 复跑不采信自报——Day 03 验收以本机实跑为准
+
+### T-012  [PASS]
+- 时间戳: 2026-11-16T09:55:00Z
+- 对应: Day 03（§43.3 清单逐项打勾） / 里程碑 M0
+- 测试项: 68 表声明独立复核：spec §43.3 权威清单 vs 迁移实际建表 vs 测试 allTables 三方一致
+- 命令: 静态比对 docs §43.3(L6273-6305) × migrations/0001+0002 × store_full_test.go allTables
+- 预期: 三方数量与名称一致
+- 实际: §43.3 清单 67 张 + identities（§43.3 漏列、§4.2 L1106 要求，开发方补列并注释说明）= 68；0001 建 13 + 0002 建 55 = 68；allTables 列 68。Down 段 55 条 DROP 逆序完整
+- 结果: PASS
+- 关联 bug: 无
+
+### T-013  [PASS]
+- 时间戳: 2026-11-16T09:59:00Z
+- 对应: Day 03（Owner 新增职责：代码质量审计首轮，覆盖 Day 01-03 全量代码、重点 Day 03） / 里程碑 M0
+- 测试项: 代码质量审计：migrations×2 + store 全部 Go 文件 + domain 复审 + 配置卫生
+- 命令: 人工全量阅读（1780 行）+ 交叉对照 spec
+- 预期: 识别质量问题并按严重度分级
+- 实际: 功能性 bug 0；质量问题 4 项 + 信息 2 项，见下方「代码质量审计」小节（Q-1 中 / Q-2~Q-4 低 / Q-5~Q-6 info）
+- 结果: PASS（不阻断 Day 03 验收）
+- 关联 bug: 无
+
+---
+
+## 代码质量审计（2026-11-16 首轮，随测试执行，Owner 指令新增）
+
+> 覆盖：Day 01-03 全量代码（domain 14 文件 / store 8 文件 / migrations 2 / cmd 2 / 配置）。分级：中=建议随下一提交修；低=择机修；info=知悉即可。功能性 bug 记入上方 bug 表，此处只记质量项。
+
+| 编号 | 严重度 | 位置 | 问题 | 建议 |
+|---|---|---|---|---|
+| Q-1 | 中 | migrations/0002_full.sql:661 `cross_run_finding_links` | 引用端 `linked_run_id`+`linked_finding_id` 是普通 TEXT，未加复合外键。§43.3 不变量明文「跨 Run 引用一律复合外键校验」，§47 此表的存在意义就是跨 Run 关联；且 `findings` 已有 `UNIQUE(run_id,id)`（0001 已建），加 `FOREIGN KEY (linked_run_id, linked_finding_id) REFERENCES findings(run_id, id)` 零额外成本。当前 schema 接受指向不存在 Finding 的脏链接，且尚无应用层校验兜底 | 补 0003 硬化迁移加复合外键；表头注释的「不加 FK」策略是给 identity_id 类引用的，不适用此表 |
+| Q-2 | 低 | internal/store/migrate.go:110 `splitStatements` | 逐行去整行注释后按 `;` 盲切：inline 尾注（本项目大量使用）中的 `;` 或未来 DDL 字符串字面量含 `;` 会静默切出坏语句。注释已自知此限制但无防护 | 切分前剥离行内 `--` 尾注；补一个含 `;` 尾注的用例锁住行为。另 extractUp 对缺 `-- +goose Up` 标记的文件会连 Down 段一起执行，建议改为报错 |
+| Q-3 | 低 | 0002_full.sql:276 `budget_ledger.amount REAL`、:337 `model_calls.cost REAL` | 预算账本（§24 RESERVED→SETTLED 的仲裁者）与模型成本用浮点存储，累计会有舍入误差，对账时 RESERVED≠SETTLED 可能恒差尾数 | 改整型微单位（amount_micro INTEGER + unit）或十进制文本；越早改迁移代价越小 |
+| Q-4 | 低 | 0002_full.sql 多处 | 部分子表 FK/热路径列缺索引：user_directives.run_id、operations.run_id、tool_recovery_attempts.action_id、memory_outbox(published 扫描路径)、memory_links/gaps.memory_session_id、job_dependencies.depends_on_job_id（反向依赖查询）、evidence_citations.evidence_id、request_capabilities.action_id/attempt_id。当前量小无感，outbox 类表会持续增长 | 后续硬化日统一补一轮索引迁移 |
+| Q-5 | info | 全局 | 时间列全 TEXT RFC3339Nano(UTC)，字典序=时间序的前提是**所有写入**都走 store 层 dbT()（强制 UTC）。后续模块（events/outbox 发布器等）若直写 SQL 且用了本地时区，排序即坏 | 保持「Store 是唯一 SQL 入口」（§0.2 已声明）即可，code review 时盯住 |
+| Q-6 | info | store_full_test.go:121 | 跨 Run 测试用「不存在的 run」证明复合外键——schema 上成立（finding_evidence 无独立 run_id→runs FK，拒绝只能来自复合 FK），但更严格的版本是造一条「存在但不拥有该 finding 的 run」，顺带证明配对语义。另建议 TestAllTablesExist 末尾加 `PRAGMA foreign_key_check` 一行，迁移级 FK 一致性白捡 | 测试增强，非缺陷 |
+
+**做得好的（保持）**：迁移器版本记录与 DDL 同事务（原子）；建表按依赖序 + Down 严格逆序；Day 02 复合外键设计纯净（无冗余单列 FK）；全部查询参数化；t.TempDir/t.Cleanup 测试卫生；PRAGMA 走 DSN（per-connection，不踩连接池坑）；注释全程带 spec 引用可回溯；BUG-001 教训已固化进 .gitignore 注释。
+
 ---
 
 ## 已修复 bug（归档）
