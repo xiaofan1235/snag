@@ -1,0 +1,176 @@
+# api/events.yaml —— SSE 事件注册表（§15.6 唯一来源）。
+#
+# 前后端事件类型从本文件生成（cmd/gen-contracts → internal/events/events_gen.go + web/src/events.gen.ts）。
+# 契约测试断言：§15.6 列的每个事件都在此、每个事件都有 payload schema（§23 M0 契约）。
+# 游标语义（§15.6）：SSE 补发用 Run 内单调 event_cursor（= events.sequence），全局流用 global_sequence。
+version: 1
+
+events:
+  # —— Run / 生命周期 ——
+  run.updated:
+    description: Run 状态/进度更新
+    payload: { run_id: string, state: string, revision: integer, event_cursor: integer }
+  run.exit_blocked:
+    description: Run 想退出但被未决项阻塞（§5）
+    payload: { run_id: string, reason: string }
+  preflight.updated:
+    description: 预检状态更新
+    payload: { run_id: string, preflight_id: string, state: string }
+
+  # —— Job / Attempt / Agent ——
+  job.created:
+    description: 新建 Job
+    payload: { run_id: string, job_id: string, kind: string }
+  job.updated:
+    description: Job 状态更新
+    payload: { run_id: string, job_id: string, state: string, revision: integer }
+  attempt.updated:
+    description: Attempt 状态更新
+    payload: { job_id: string, attempt_id: string, state: string, generation: integer }
+  agent.progress:
+    description: Agent 进度心跳
+    payload: { run_id: string, agent_session_id: string, note: string }
+  activity.created:
+    description: 活动流条目
+    payload: { run_id: string, activity_id: string, kind: string }
+
+  # —— 规划 / 动作 / 命令 ——
+  plan.updated:
+    description: 战略快照/计划更新
+    payload: { run_id: string, snapshot_revision: integer, epoch_id: string }
+  action.updated:
+    description: 动作状态更新
+    payload: { run_id: string, action_id: string, state: string }
+  command.completed:
+    description: 幂等命令完成
+    payload: { actor_id: string, idempotency_key: string, state: string }
+  operation.updated:
+    description: 异步操作更新
+    payload: { run_id: string, operation_id: string, state: string }
+  directive.updated:
+    description: 用户指令状态更新
+    payload: { run_id: string, directive_id: string, state: string }
+  exchange.created:
+    description: 一次请求/响应交换记录
+    payload: { run_id: string, action_id: string, exchange_id: string }
+
+  # —— 证据 / 攻击面 / 产物 ——
+  evidence.created:
+    description: 新证据
+    payload: { run_id: string, evidence_id: string, action_id: string, kind: string }
+  asset.updated:
+    description: 资产发现/更新
+    payload: { run_id: string, asset_id: string, kind: string }
+  discovery.updated:
+    description: 发现项更新
+    payload: { run_id: string, discovery_id: string, kind: string }
+  artifact.created:
+    description: 派生产物生成
+    payload: { run_id: string, artifact_id: string, kind: string }
+  resource.updated:
+    description: 资源租约更新
+    payload: { run_id: string, resource_id: string, state: string }
+
+  # —— 假设 / 发现 / 验证 / 覆盖 ——
+  hypothesis.updated:
+    description: 假设更新
+    payload: { run_id: string, hypothesis_id: string, state: string }
+  finding.updated:
+    description: Finding 状态更新
+    payload: { run_id: string, finding_id: string, state: string }
+  verification.updated:
+    description: 验证结果更新
+    payload: { run_id: string, finding_id: string, verdict: string }
+  retest.updated:
+    description: 复测更新
+    payload: { run_id: string, finding_id: string, state: string }
+  coverage.updated:
+    description: 覆盖率更新
+    payload: { run_id: string, surface_revision: integer }
+
+  # —— 审批 / 预算 / 身份 / 出口 ——
+  approval.requested:
+    description: 请求人工审批
+    payload: { run_id: string, approval_id: string, action_id: string }
+  approval.resolved:
+    description: 审批被批准/拒绝
+    payload: { run_id: string, approval_id: string, state: string }
+  budget.updated:
+    description: 预算更新
+    payload: { run_id: string, scope: string, kind: string }
+  provider.updated:
+    description: 模型 Provider 状态
+    payload: { run_id: string, provider: string, state: string }
+  identity.updated:
+    description: 身份状态更新
+    payload: { run_id: string, identity_id: string, state: string }
+  egress.updated:
+    description: 出口/代理状态
+    payload: { run_id: string, channel: string, state: string }
+  sandbox.updated:
+    description: 沙箱状态
+    payload: { run_id: string, sandbox_id: string, state: string }
+
+  # —— 工具 / 浏览器 / 报告 / 通知 ——
+  tool.updated:
+    description: 工具注册/状态更新
+    payload: { tool_id: string, state: string }
+  browser.updated:
+    description: 浏览器引擎状态
+    payload: { run_id: string, state: string }
+  report.updated:
+    description: 报告状态更新
+    payload: { run_id: string, report_id: string, state: string }
+  notification.updated:
+    description: 通知更新
+    payload: { run_id: string, notification_id: string }
+
+  # —— 知识 / 技能 / 模板 ——
+  knowledge.updated:
+    description: 知识库更新
+    payload: { workspace_id: string, doc_id: string }
+  skill.updated:
+    description: 技能更新
+    payload: { skill_id: string, state: string }
+  template.updated:
+    description: 模板更新
+    payload: { template_id: string, state: string }
+
+  # —— 认证 / 诊断 ——
+  auth.required:
+    description: 需要重新认证（§45）
+    payload: { run_id: string, identity_id: string }
+  diagnostics.updated:
+    description: 诊断信息更新
+    payload: { run_id: string, kind: string }
+
+  # —— 记忆（§26，info 类） ——
+  memory.health_updated:
+    description: 记忆健康度更新
+    payload: { workspace_id: string, memory_session_id: string, state: string }
+  memory.gap_created:
+    description: 记忆缺口
+    payload: { memory_session_id: string, gap_id: string, kind: string }
+  memory.observation_created:
+    description: 记忆观察条目
+    payload: { memory_session_id: string, observation_id: string }
+  memory.rebuild_updated:
+    description: 记忆重建进度
+    payload: { memory_session_id: string, state: string }
+
+  # —— 席位 / 恢复 / 策略 / 系统 ——
+  seat.updated:
+    description: 席位状态更新（§27.6）
+    payload: { run_id: string, seat_id: string, state: string, occupant_generation: integer }
+  recovery.updated:
+    description: 恢复操作更新
+    payload: { run_id: string, recovery_id: string, outcome: string }
+  policy.denied:
+    description: 动作被策略拒绝（红线命中）
+    payload: { run_id: string, action_id: string, reason: string }
+  system.warning:
+    description: 系统级告警
+    payload: { kind: string, message: string }
+  stream.resync_required:
+    description: 事件流需重新同步（客户端过旧/事件被压缩）
+    payload: { run_id: string, reason: string }

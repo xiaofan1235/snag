@@ -12,6 +12,7 @@ go 1.23.0
 require (
 	github.com/gowebpki/jcs v1.0.2
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
+	go.yaml.in/yaml/v3 v3.0.5
 	modernc.org/sqlite v1.38.2
 )
 

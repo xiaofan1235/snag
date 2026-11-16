@@ -1,0 +1,489 @@
+openapi: 3.1.0
+info:
+  title: Snag Control API
+  version: 0.1.0
+  description: >
+    Snag 控制面 REST 契约骨架（§15）。Day 05 先冻结 Run API(§15.1) 与 Job API(§15.2) 的
+    路由与 Schema；其余章节路由后续补。Go 类型由 cmd/gen-contracts 从本文件生成到 api/gen/。
+    契约测试断言每个路由都有 operationId 与响应 Schema（§23 M0）。
+
+servers:
+  - url: http://127.0.0.1:8787
+    description: 本地默认（§15.7 只监听 127.0.0.1）
+
+paths:
+  /v1/runs:
+    get:
+      operationId: listRuns
+      summary: 列出 Run
+      responses:
+        "200":
+          description: Run 列表
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RunList" }
+    post:
+      operationId: createRun
+      summary: 新建 Run
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateRunRequest" }
+      responses:
+        "201":
+          description: 已创建
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Run" }
+        "400":
+          description: 参数非法
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /v1/runs/{runId}:
+    get:
+      operationId: getRun
+      summary: 取单个 Run
+      parameters:
+        - { name: runId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Run
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Run" }
+        "404":
+          description: 不存在
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /v1/runs/{runId}/preflights:
+    post:
+      operationId: createPreflight
+      summary: 发起预检
+      parameters:
+        - { name: runId, in: path, required: true, schema: { type: string } }
+      responses:
+        "201":
+          description: 预检已创建
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Preflight" }
+
+  /v1/runs/{runId}/start:
+    post:
+      operationId: startRun
+      summary: 启动 Run（绑定 preflight_id + policy_revision）
+      parameters:
+        - { name: runId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StartRunRequest" }
+      responses:
+        "200":
+          description: 已启动
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Run" }
+
+  /v1/runs/{runId}/pause:
+    post:
+      operationId: pauseRun
+      summary: "暂停 Run（mode: now | after_current_action）"
+      parameters:
+        - { name: runId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PauseRunRequest" }
+      responses:
+        "200":
+          description: 已请求暂停
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Run" }
+
+  /v1/runs/{runId}/resume:
+    post:
+      operationId: resumeRun
+      summary: 恢复 Run
+      parameters:
+        - { name: runId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: 已恢复
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Run" }
+
+  /v1/runs/{runId}/stop:
+    post:
+      operationId: stopRun
+      summary: 停止 Run（只影响未来动作）
+      parameters:
+        - { name: runId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: 已请求停止
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Run" }
+
+  /v1/runs/{runId}/status:
+    get:
+      operationId: getRunStatus
+      summary: Run 状态快照（原子携带 event_cursor）
+      parameters:
+        - { name: runId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: 状态
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RunStatus" }
+
+  /v1/runs/{runId}/events:
+    get:
+      operationId: streamRunEvents
+      summary: Run 事件流（SSE，从 cursor+1 补发）
+      parameters:
+        - { name: runId, in: path, required: true, schema: { type: string } }
+        - { name: after, in: query, required: false, schema: { type: integer } }
+      responses:
+        "200":
+          description: 事件流
+          content:
+            text/event-stream:
+              schema: { $ref: "#/components/schemas/EventEnvelope" }
+
+  /v1/runs/{runId}/directives:
+    post:
+      operationId: createDirective
+      summary: 下发用户指令
+      parameters:
+        - { name: runId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateDirectiveRequest" }
+      responses:
+        "202":
+          description: 已入队
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Directive" }
+
+  /v1/directives/{directiveId}:
+    get:
+      operationId: getDirective
+      summary: 查询指令状态
+      parameters:
+        - { name: directiveId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: 指令
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Directive" }
+
+  /v1/runs/{runId}/evidence:
+    get:
+      operationId: listRunEvidence
+      summary: Run 级脱敏证据列表（游标分页）
+      parameters:
+        - { name: runId, in: path, required: true, schema: { type: string } }
+        - { name: cursor, in: query, required: false, schema: { type: string } }
+      responses:
+        "200":
+          description: 证据列表
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EvidenceList" }
+
+  /v1/runs/{runId}/reports:
+    get:
+      operationId: listRunReports
+      summary: Run 报告列表
+      parameters:
+        - { name: runId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: 报告列表
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReportList" }
+
+  /v1/operations/{operationId}:
+    get:
+      operationId: getOperation
+      summary: 幂等命令/异步操作结果
+      parameters:
+        - { name: operationId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: 操作
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Operation" }
+
+  /v1/runs/{runId}/jobs:
+    get:
+      operationId: listRunJobs
+      summary: 列出 Run 下的 Job
+      parameters:
+        - { name: runId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Job 列表
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobList" }
+
+  /v1/jobs/{jobId}:
+    get:
+      operationId: getJob
+      summary: 取单个 Job
+      parameters:
+        - { name: jobId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Job
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Job" }
+
+  /v1/jobs/{jobId}/cancel:
+    post:
+      operationId: cancelJob
+      summary: 取消 Job（只影响未来动作）
+      parameters:
+        - { name: jobId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CancelJobRequest" }
+      responses:
+        "200":
+          description: 已请求取消
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Job" }
+
+  /v1/jobs/{jobId}/reprioritize:
+    post:
+      operationId: reprioritizeJob
+      summary: 调整 Job 优先级
+      parameters:
+        - { name: jobId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReprioritizeJobRequest" }
+      responses:
+        "200":
+          description: 已调整
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Job" }
+
+  /v1/jobs/{jobId}/attempts:
+    get:
+      operationId: listJobAttempts
+      summary: Job 的尝试列表
+      parameters:
+        - { name: jobId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: 尝试列表
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AttemptList" }
+
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+      required: [code, message]
+
+    Run:
+      type: object
+      properties:
+        id: { type: string }
+        workspace_id: { type: string }
+        name: { type: string }
+        state: { type: string }
+        revision: { type: integer }
+        created_by: { type: string }
+        created_at: { type: string }
+        event_cursor: { type: integer }
+      required: [id, workspace_id, name, state, revision]
+
+    RunList:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Run" } }
+        next_cursor: { type: string }
+      required: [items]
+
+    CreateRunRequest:
+      type: object
+      properties:
+        workspace_id: { type: string }
+        name: { type: string }
+        authorization_scope_digest: { type: string }
+      required: [workspace_id, name]
+
+    StartRunRequest:
+      type: object
+      properties:
+        preflight_id: { type: string }
+        policy_revision: { type: integer }
+      required: [preflight_id, policy_revision]
+
+    PauseRunRequest:
+      type: object
+      properties:
+        mode: { type: string }
+      required: [mode]
+
+    RunStatus:
+      type: object
+      properties:
+        run_id: { type: string }
+        state: { type: string }
+        event_cursor: { type: integer }
+      required: [run_id, state, event_cursor]
+
+    Preflight:
+      type: object
+      properties:
+        id: { type: string }
+        run_id: { type: string }
+        state: { type: string }
+      required: [id, run_id, state]
+
+    CreateDirectiveRequest:
+      type: object
+      properties:
+        kind: { type: string }
+        content: { type: string }
+      required: [kind]
+
+    Directive:
+      type: object
+      properties:
+        id: { type: string }
+        run_id: { type: string }
+        kind: { type: string }
+        state: { type: string }
+      required: [id, run_id, state]
+
+    EventEnvelope:
+      type: object
+      properties:
+        run_id: { type: string }
+        sequence: { type: integer }
+        event_type: { type: string }
+        payload: { type: object }
+      required: [sequence, event_type]
+
+    Evidence:
+      type: object
+      properties:
+        id: { type: string }
+        run_id: { type: string }
+        kind: { type: string }
+        content_type: { type: string }
+        size_bytes: { type: integer }
+      required: [id, run_id, kind]
+
+    EvidenceList:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Evidence" } }
+        next_cursor: { type: string }
+      required: [items]
+
+    Report:
+      type: object
+      properties:
+        id: { type: string }
+        run_id: { type: string }
+        state: { type: string }
+        revision: { type: integer }
+      required: [id, run_id, state]
+
+    ReportList:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Report" } }
+      required: [items]
+
+    Operation:
+      type: object
+      properties:
+        id: { type: string }
+        run_id: { type: string }
+        kind: { type: string }
+        state: { type: string }
+      required: [id, state]
+
+    Job:
+      type: object
+      properties:
+        id: { type: string }
+        run_id: { type: string }
+        kind: { type: string }
+        title: { type: string }
+        state: { type: string }
+        priority: { type: integer }
+        generation: { type: integer }
+        revision: { type: integer }
+      required: [id, run_id, kind, state]
+
+    JobList:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Job" } }
+        next_cursor: { type: string }
+      required: [items]
+
+    CancelJobRequest:
+      type: object
+      properties:
+        cancel_code: { type: string }
+        detail: { type: string }
+      required: [cancel_code]
+
+    ReprioritizeJobRequest:
+      type: object
+      properties:
+        priority: { type: integer }
+      required: [priority]
+
+    Attempt:
+      type: object
+      properties:
+        id: { type: string }
+        job_id: { type: string }
+        generation: { type: integer }
+        state: { type: string }
+      required: [id, job_id, state]
+
+    AttemptList:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Attempt" } }
+      required: [items]
