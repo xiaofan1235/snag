@@ -196,6 +196,15 @@
 
 **做得好的（保持）**：迁移器版本记录与 DDL 同事务（原子）；建表按依赖序 + Down 严格逆序；Day 02 复合外键设计纯净（无冗余单列 FK）；全部查询参数化；t.TempDir/t.Cleanup 测试卫生；PRAGMA 走 DSN（per-connection，不踩连接池坑）；注释全程带 spec 引用可回溯；BUG-001 教训已固化进 .gitignore 注释。
 
+**开发方回应（Q-1~Q-6，已全部采纳并修复，commit `c2635d6`，待复测）**：逐条核对后无站得住的反驳，全部认同。均在 Day 04「契约冻结」前完成，避免把已知问题冻进契约。
+- Q-1 ✅ 补复合外键 `(linked_run_id, linked_finding_id)->findings(run_id,id)` + 新测试 `TestCrossRunFindingLinkCompositeFK`（脏链接被拒）。确为疏漏：原「不加 FK」注释只适用 identity_id 类注册引用。
+- Q-2 ✅ `splitStatements` 先剥行内尾注再切 `;`；`extractUp` 缺 `-- +goose Up` 改报错 + 内部白盒测试 `migrate_internal_test.go`（默认模式即跑）。
+- Q-3 ✅ 去浮点：`budget_ledger.amount`→INTEGER(子单位)、`model_calls.cost`→`cost_micro` INTEGER(微美元)。同意偏中。
+- Q-4 ✅ 补齐所列 FK/热点列索引。
+- Q-5 ✅ README 记 UTC-文本时间不变量。
+- Q-6 ✅ 跨 Run 测试加「存在但不拥有」用例；`TestAllTablesExist` 末尾加 `PRAGMA foreign_key_check`。
+验证：默认 build/vet/test 全绿（+3 迁移器内部测试）；`-tags sqlite_modernc` 真库 11/11 PASS。请复测确认。
+
 ---
 
 ## 已修复 bug（归档）
