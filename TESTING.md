@@ -319,6 +319,11 @@
 - Q-10 ⏸ **有意保留**（审查亦认可 M0 留白）：planpatch op 载荷暂不收口，schema 加说明，实现各 op 时用 if/then 按 op 收口。PlanPatch 经 PlanCompiler 应用、非 digest 锚，宽松风险低。
 - 新增 `TestPolicyHardening`（拼错开关名被拒 / 正确键通过 / 垃圾 date-time 被拒）。canon+schemas+默认全量全绿。请复测确认。
 
+**开发方回应（Q-11~Q-12，commit `fff046f`，待复测）**：M0 收尾审计。五方事件对账与靶场探针的独立复核很有价值。
+- Q-11 ✅ **向前补齐**：确认是 spec §27.5 与 §15.6 两节打架，我的实现忠实跟随权威登记节 §15.6（无误）。决策上选择补事件而非改规格——events.yaml 增 `external_message.updated`（§27.5 多窗口消息/Handoff 要用，external_messages 表 Day 03 已建），成为第 50 个事件，重跑 gen-contracts，expectedEvents 同步到 50。若 Owner 更想改 §27.5 措辞，可回退此条。
+- Q-12 ✅ 生成器**改为未知类型响亮报错**（goScalar/tsScalar/goType 返回 error 并传播），与 Q-7 同款「静默吞错」一并消除。+ 负向测试 `gen_test.go`（拼错标量/Schema/数组元素类型均报错）。
+验证：生成器重跑 ok，五方对账 50/50 仍一致（测试锁定同步）；默认 + `-tags sqlite_modernc` 全量全绿。请复测确认。
+
 ---
 
 ## 已修复 bug（归档）
