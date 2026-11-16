@@ -11,12 +11,12 @@
 
 ## 当前位置
 
-**Day 06 —— 单写者 Store（durable/bulk 双连接）✅（已提交 `461d8df`）—— M1 起步**
-下一步：**Day 07（dev-plan/day-07.md）**，等待 Owner 批准后开始。
+**Day 07 —— Run 状态机（表驱动 + 代码生成 + 属性测试）✅（已提交 `1bb88e5`）**
+下一步：**Day 08（dev-plan/day-08.md）**，等待 Owner 批准后开始。
 
-Claude 开发前自检：`TESTING.md` 顶部「未解决 bug」= 无（Q-11 已收尾、Q-12 已复测关闭）。
-✅ Day 06 已验证：`go test -race -tags sqlite_modernc ./internal/store/...` 全绿——
-3 并发 Worker 各写 1000 事件无 SQLITE_BUSY、durable/bulk 分级、关闭不死锁。
+Claude 开发前自检：`TESTING.md` 顶部「未解决 bug」= 无（Q-13/Q-14 已复测关闭 T-028）。
+✅ Day 07 已验证：`go generate` 可复现 + `go test ./internal/control/...` 全绿——
+完整迁移表任意(状态×事件)有确定结果、属性测试 100 组、控制器 revision 单调、非法被拒。
 
 ---
 
@@ -30,7 +30,7 @@ Claude 开发前自检：`TESTING.md` 顶部「未解决 bug」= 无（Q-11 已�
 | 04 | M0 | 四大契约冻结 + JCS 规范化（最关键的一天） | ✅已完成 | `504ae08` | 2026-11-16 | 5契约Schema + canon(JCS RFC8785+SHA256)；键序/数字归一→同digest；合法非法样例全过 |
 | 05 | M0 | 事件注册表 + OpenAPI 骨架 + Mock Target | ✅已完成 | `c7e93d6` | 2026-11-16 | 49事件注册表+OpenAPI(Run/Job)+自写生成器(Go/TS)+Mock靶场(越权语义)；契约测试全绿 |
 | 06 | M1 | 单写者 Store（durable/bulk 双连接） | ✅已完成 | `461d8df` | 2026-11-16 | 单写goroutine串行化+durable(FULL)/bulk(NORMAL)双连接+group-commit(savepoint隔离)+只读池；-race 3并发无BUSY |
-| 07 | M1 | Run 状态机（表驱动 + 代码生成 + 属性测试） | ⬜未开始 |  |  |  |
+| 07 | M1 | Run 状态机（表驱动 + 代码生成 + 属性测试） | ✅已完成 | `1bb88e5` | 2026-11-16 | states.yaml→gen→run_sm.gen.go(34迁移)+控制器(durable条件更新)；rapid属性测试;任意组合确定结果 |
 | 08 | M1 | Job 状态机 + RECONCILING + 取消语义 | ⬜未开始 |  |  |  |
 | 09 | M1 | Attempt + Claim/Lease/Fencing | ⬜未开始 |  |  |  |
 | 10 | M1 | Event Journal + Outbox（提交后发布） | ⬜未开始 |  |  |  |
