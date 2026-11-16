@@ -285,6 +285,17 @@
 - 关联 bug: 无
 - 备注: Q-11 残留两行级改动：spec §15.6 补一行登记 + 测试注释 49→50。不修的后果：登记链断裂，下次「events.yaml 对照 §15.6」对账会把第 50 个事件误判为多余而回退
 
+### T-024  [PASS]
+- 时间戳: 2026-11-16T13:34:00Z
+- 对应: M0 收尾审计修复复测（bdc091e，Q-11 残留收尾，定时监控触发） / 里程碑 M0
+- 测试项: Q-11 收尾验证：spec §15.6 登记行落地 + 测试注释更新 + 套件回归
+- 命令: grep 登记行位置核对（L3110 落 §15.6 内、L4614 §27.5 引用有据）+ `go test ./... -count=1`
+- 预期: spec 登记链恢复（§15.6=50 与 events.yaml/生成物/expectedEvents 一致）；注释 49→50
+- 实际: contracts_test.go:16 注释已改「50 个，含 Q-11 补登的 external_message.updated」；spec §15.6 补登行在位；全套件绿。登记链 spec→yaml→Go→TS 全部 50 对齐
+- 结果: PASS
+- 关联 bug: 无
+- 备注: Q-11 关闭。测试方工具修正备案：本测试方的事件提取正则 `[a-z]+\.` 匹配不了首段带下划线的事件名（external_message），T-021 的对账方法已随之修正——后续对账用完整名单 diff 而非行首正则
+
 ---
 
 ## 代码质量审计（2026-11-16 首轮，随测试执行，Owner 指令新增）
@@ -303,7 +314,7 @@
 | Q-8 | 低 | api/schemas/policy.schema.json:37 + internal/canon/canonical.go:84 | `format:"date-time"` 未断言：santhosh-tekuri/jsonschema v6 默认不校验 format，垃圾串 `"not-a-date"` 实测通过（T-018 S2）。授权窗口 valid_until 是 §45 硬停依据，坏日期应在校验层就拒 | ValidateAgainst 编译 schema 时启用 format 断言（该库需显式开启），或应用层装载 Policy 时显式 time.Parse |
 | Q-9 | info | internal/canon（JCS 数字语义） | 实测 2^53+1 规范化为 9007199254740992（ECMAScript double 舍入，RFC 8785 规定行为）：>2^53 的整数在 digest 里会塌缩，两个不同大数可能同 digest。纳秒时间戳(~1.7e18)最易踩 | §47.1 已规定时间字段不入 digest（正确）；建议 canon 包文档补一句「digest 载荷数值字段必须 <2^53，更大数用字符串」，防后续模块误用 |
 | Q-10 | info | api/schemas 多处 | 宽松点：planpatch op items 无 additionalProperties:false 且 op 载荷未约束（实测任意字段放行）；policy methods.endpoint_rules items 无约束；runtime.max_cost 为空 schema `{}` | M0 冻结日的有意留白可接受；后续扩展 op 载荷时注意收口，防止载荷漂移进 digest 锚 |
-| Q-11 | 低 | docs spec §27.5(L4613) × §15.6 | **spec 内部不一致**：§27.5 声称 `external_message.updated`「已登记于 15.6」，§15.6 实无此事件（49 个里没有）。开发方实现忠实跟随 §15.6（五方对账 49/49 一致，实现无误）。§27.5 的多窗口消息/Handoff 功能要用这个事件 | 契约新鲜期决策便宜：要么 §15.6+events.yaml 补第 50 个事件（重跑 gen-contracts），要么改 §27.5 措辞并给 Day 12+ 留跟踪项。需 Owner 拍板。**复测（T-023）：部分修复**——决策为向前补齐，实现侧 50 事件五方同步 ✅，但 **spec §15.6 未同步（仍 49）**、contracts_test.go:16 注释仍写「49 个」——登记链（spec→yaml→生成物）断裂，下次对账会误判第 50 个事件无规格依据。残留收尾：spec §15.6 补登记行 + 改注释 |
+| Q-11 | 低 | docs spec §27.5(L4613) × §15.6 | **spec 内部不一致**：§27.5 声称 `external_message.updated`「已登记于 15.6」，§15.6 实无此事件（49 个里没有）。开发方实现忠实跟随 §15.6（五方对账 49/49 一致，实现无误）。§27.5 的多窗口消息/Handoff 功能要用这个事件 | 契约新鲜期决策便宜：要么 §15.6+events.yaml 补第 50 个事件（重跑 gen-contracts），要么改 §27.5 措辞并给 Day 12+ 留跟踪项。需 Owner 拍板。**复测（T-023/T-024）：已修复关闭**——fff046f 向前补齐第 50 事件（实现侧五方同步），bdc091e 补 spec §15.6 登记行 + 测试注释 49→50，登记链 spec→yaml→生成物全部对齐 |
 | Q-12 | 低 | cmd/gen-contracts/main.go goScalar/tsScalar/goType | 类型映射 default 分支**静默回退 string**：events.yaml/openapi.yaml 里类型拼错（如 `integre`）会静默生成 Go/TS string 字段，不报错——与 Q-7 同款「契约工具链静默吞错」模式 | default 分支改为返回错误（生成器响亮失败）；补一个拼错类型的负向用例。**复测（T-023）：已修复关闭**——三个映射函数均改 (string, error) 带上下文传播，负向测试 gen_test.go（拼错标量/Schema/数组元素类型均报错）随套件通过 |
 
 **做得好的（保持）**：迁移器版本记录与 DDL 同事务（原子）；建表按依赖序 + Down 严格逆序；Day 02 复合外键设计纯净（无冗余单列 FK）；全部查询参数化；t.TempDir/t.Cleanup 测试卫生；PRAGMA 走 DSN（per-connection，不踩连接池坑）；注释全程带 spec 引用可回溯；BUG-001 教训已固化进 .gitignore 注释。
