@@ -11,12 +11,12 @@
 
 ## 当前位置
 
-**Day 03 —— 数据模型 Part2（补齐全部表）✅（已提交 `b27ed58`）**
-下一步：**Day 04（四大契约冻结 + JCS 规范化，最关键的一天）**，等待 Owner 批准后开始。
+**Day 04 —— 四大契约冻结 + JCS 规范化 ✅（已提交 `504ae08`）**
+下一步：**Day 05（事件注册表 + OpenAPI 骨架 + Mock Target）**，等待 Owner 批准后开始。
 
-Claude 开发前自检：`TESTING.md` 顶部「未解决 bug」= 无（BUG-001 已修并复测关闭）。
-✅ Day 03 真库已验证：`go test -tags sqlite_modernc ./internal/store/...` → 8/8 PASS——
-§43.3 权威清单 68 表全建出、commands/external_messages 唯一约束、复合外键跨 Run 拒绝均通过。
+Claude 开发前自检：`TESTING.md` 顶部「未解决 bug」= 无（Q-1~Q-6 已修并复测关闭 T-014）。
+✅ Day 04 已验证：`go test ./internal/canon/... ./api/...` 全绿——键序/数字归一→同 digest、
+5 个契约 Schema 合法通过非法被拒。**契约已冻结**，后续改动代价大，改前须评估。
 
 ---
 
@@ -27,7 +27,7 @@ Claude 开发前自检：`TESTING.md` 顶部「未解决 bug」= 无（BUG-001 �
 | 01 | M0 | 项目骨架 + 领域类型（domain） | ✅已完成 | `860272b` | 2026-11-16 | go build/vet/test 全绿；8/8 测试；枚举对照 §43.5 齐全。待推送 |
 | 02 | M0 | 数据模型 Part1 + Store 骨架 | ✅已完成 | `7461cb0` | 2026-11-16 | 13表+手写Store+内置迁移器；默认 build/vet/test 绿；**真库已验证**(go1.23+modernc v1.38.2，`-tags sqlite_modernc` 全 PASS) |
 | 03 | M0 | 数据模型 Part2（补齐全部表） | ✅已完成 | `b27ed58` | 2026-11-16 | §43.3 全 68 表(补 55)；真库 8/8 PASS；唯一约束+复合外键跨Run拒绝生效 |
-| 04 | M0 | 四大契约冻结 + JCS 规范化（最关键的一天） | ⬜未开始 |  |  |  |
+| 04 | M0 | 四大契约冻结 + JCS 规范化（最关键的一天） | ✅已完成 | `504ae08` | 2026-11-16 | 5契约Schema + canon(JCS RFC8785+SHA256)；键序/数字归一→同digest；合法非法样例全过 |
 | 05 | M0 | 事件注册表 + OpenAPI 骨架 + Mock Target | ⬜未开始 |  |  |  |
 | 06 | M1 | 单写者 Store（durable/bulk 双连接） | ⬜未开始 |  |  |  |
 | 07 | M1 | Run 状态机（表驱动 + 代码生成 + 属性测试） | ⬜未开始 |  |  |  |
@@ -85,3 +85,4 @@ Claude 开发前自检：`TESTING.md` 顶部「未解决 bug」= 无（BUG-001 �
 - **2026-11-16** — Owner 开通网络权限（本会话即时生效）。补做 Day 02 真库验证：`go get modernc.org/sqlite@v1.38.2`。踩坑记录：默认装到 v1.62.0 会把 go 指令顶到 1.26.0（libc/x-sys 要求），故**把驱动钉在 v1.38.2（+libc v1.66.3），go 指令定为 1.23**——满足纯 Go 驱动的最低要求又不强依赖刚发布的 1.26；清理了 toolchain 固定行。`go test -tags sqlite_modernc ./internal/store/...` 全 PASS，默认构建仍零驱动。提交 go.mod/go.sum。下一步：等 Owner 批准后开 Day 03。
 - **2026-11-16** — Day 03 完成（提交 `b27ed58`）：照 §43.3 权威清单补齐其余 55 张表（共 68）。§4.2 给字段契约的照抄，其余按用途设计最小合理 schema（§43.8）；按依赖顺序建表避免 FK 前向引用。补建 §43.3 漏列、§4.2 要求的 `identities`。决定：Day 02 遗留的跨表引用列（actions.identity_id 等）**不做表重建加 FK**（SQLite 限制 + 高风险低收益），改应用层校验，已记 README。真库 `-tags sqlite_modernc` 8/8 PASS：68 表齐、commands/external_messages 唯一约束、复合外键跨 Run 拒绝。下一步：Day 04（四大契约冻结，最关键）。
 - **2026-11-16** — 按本地测试模型首轮代码质量审计（T-013，功能 bug 0）加固（提交 `c2635d6`）。Q-1~Q-6 逐条核对后全部认同采纳，趁 Day 04 契约冻结前修完：Q-1 cross_run_finding_links 补复合外键(确为疏漏)；Q-2 迁移器剥行内尾注+缺标记报错+内部测试；Q-3 预算/成本去浮点改整数子单位；Q-4 补 FK/热点索引；Q-5 README 记 UTC 时间不变量；Q-6 强化跨 Run 测试+foreign_key_check。真库 11/11 PASS。TESTING 已回写开发方回应，待本地模型复测。下一步仍为 Day 04，等 Owner 批准。
+- **2026-11-16** — Day 04 完成（提交 `504ae08`），M0 最关键一天：冻结四大契约 JSON Schema（policy/planpatch/action/experiment/evidence，照 §9.1/§6.3/§6.7/§4.1）+ 实现 `internal/canon`（JCS RFC 8785 规范化 + SHA-256 Digest + Schema 校验）。规范化**用成熟库 gowebpki/jcs**（数字归一最易搓错，不自实现）+ santhosh-tekuri/jsonschema v6；两库均 go 1.21，基线仍 1.23。验证 §47.5 立身不变量：键序打乱/数字 1vs1.0 → 同 digest；5 Schema 合法通过、非法(version≠1/match=regex/op越权/缺字段/伪造state)被拒。digest 登记表(§47.1)写成常量注释。**契约已冻结**。下一步：Day 05。
