@@ -22,8 +22,9 @@ func OpenReader(path string, maxConns int) (*Reader, error) {
 	if maxConns < 1 {
 		maxConns = 4
 	}
+	// 只读连接不设 journal_mode——库的 WAL 由写连接设定（文件级），只读连接改不了也不需要（Q-14）。
 	dsn := fmt.Sprintf(
-		"file:%s?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)"+
+		"file:%s?_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)"+
 			"&_pragma=query_only(1)&_pragma=temp_store(MEMORY)",
 		path,
 	)

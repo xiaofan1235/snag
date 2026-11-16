@@ -132,6 +132,25 @@ func TestWriterConcurrencyNoBusy(t *testing.T) {
 	}
 }
 
+// Q-13：Start() 之后调 Migrate() 必须报错（防止与 writer goroutine 争用 durable 连接）。
+func TestMigrateAfterStartRejected(t *testing.T) {
+	if !sqlite.Registered() {
+		t.Skip("未接入 SQLite 驱动：-tags sqlite_modernc 下运行")
+	}
+	w, err := store.OpenWriter(filepath.Join(t.TempDir(), "w.db"))
+	if err != nil {
+		t.Fatalf("OpenWriter: %v", err)
+	}
+	t.Cleanup(func() { _ = w.Close() })
+	if err := w.Migrate(); err != nil { // Start 前：允许
+		t.Fatalf("Start 前 Migrate 应成功: %v", err)
+	}
+	w.Start()
+	if err := w.Migrate(); err == nil { // Start 后：拒绝
+		t.Error("Start() 后 Migrate() 应报错（Q-13 运行期守卫）")
+	}
+}
+
 // 关闭后再提交应返回错误而非 panic/死锁。
 func TestWriterClosedRejects(t *testing.T) {
 	w, _ := openTestWriter(t)

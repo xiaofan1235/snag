@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"pentagent/internal/store/sqlite"
@@ -40,6 +41,7 @@ type Writer struct {
 	wg        sync.WaitGroup
 	closeOnce sync.Once
 	closeErr  error
+	started   atomic.Bool // Q-13：启动后禁止直接触碰 durable 连接（Migrate/DurableDBForTest）
 
 	ckInterval time.Duration
 }
@@ -91,10 +93,19 @@ func openWriteConn(path, synchronous string) (*sql.DB, error) {
 }
 
 // Migrate 在 durable 连接上应用迁移（启动前的一次性设置）。
-func (w *Writer) Migrate() error { return Migrate(w.durable) }
+// Q-13：Start() 后 durable 连接归 writer goroutine 独占，此时再调会数据竞态——故加运行期守卫。
+func (w *Writer) Migrate() error {
+	if w.started.Load() {
+		return errors.New("store: Migrate 必须在 Start() 之前调用")
+	}
+	return Migrate(w.durable)
+}
 
-// Start 启动单写 goroutine。
+// Start 启动单写 goroutine。幂等：重复调用无副作用。
 func (w *Writer) Start() {
+	if w.started.Swap(true) {
+		return
+	}
 	w.wg.Add(1)
 	go w.loop()
 }
@@ -257,6 +268,7 @@ func (w *Writer) drain() {
 }
 
 // checkpoint 做一次 WAL 截断 checkpoint（在 writer goroutine 内，串行安全）。
+// best-effort（Q-14）：有读者占用时 TRUNCATE 可能返回 busy，忽略即可，下次再截断。
 func (w *Writer) checkpoint() {
 	_, _ = w.durable.Exec("PRAGMA wal_checkpoint(TRUNCATE)")
 }
@@ -277,5 +289,11 @@ func (w *Writer) Close() error {
 	return w.closeErr
 }
 
-// DurableDB 暴露 durable 连接（只给迁移/测试只读核对用；正常写一律走 Durable/Bulk）。
-func (w *Writer) DurableDB() *sql.DB { return w.durable }
+// DurableDBForTest 暴露 durable 连接，仅供 Start() 之前的测试只读核对；正常写一律走 Durable/Bulk。
+// 命名即约束（Q-13）：Start() 后严禁使用，否则与 writer goroutine 争用同一连接。
+func (w *Writer) DurableDBForTest() *sql.DB {
+	if w.started.Load() {
+		panic("store: DurableDBForTest 在 Start() 之后被调用（会与 writer 争用连接）")
+	}
+	return w.durable
+}
