@@ -243,6 +243,37 @@
 - 关联 bug: 无
 - 备注: 开发方新增 TestPolicyHardening 与我的探针口径一致；Q-7~Q-10 全部闭环
 
+### T-020  [PASS]
+- 时间戳: 2026-11-16T12:57:00Z
+- 对应: Day 05（dev-plan/day-05.md §7，提交 c7e93d6，定时监控触发） / 里程碑 M0 收尾
+- 测试项: Day 05 默认套件 + §7 官方用例独立复跑（mocktarget 越权语义 + 契约完整性）
+- 命令: `go build ./... && go vet ./... && go test ./... -count=1`（覆盖 §7 的 `go test ./api/... ./cmd/mocktarget/...`）
+- 预期: 全绿
+- 实际: 全绿——api（契约测试）、api/schemas、cmd/mocktarget（归属语义 6 断言）、canon、domain、store 全过
+- 结果: PASS
+- 关联 bug: 无
+
+### T-021  [PASS]
+- 时间戳: 2026-11-16T13:00:00Z
+- 对应: Day 05（§15.6 事件注册表 + 三方生成物一致性独立复核） / 里程碑 M0
+- 测试项: spec §15.6 事件清单 × events.yaml × expectedEvents × events_gen.go × events.gen.ts 五方对账
+- 命令: awk/grep 精确提取 §15.6 行首事件名 vs contracts_test.go expectedEvents vs 两个生成物，逐一 diff
+- 预期: 数量与名称完全一致
+- 实际: 五方一致，各 49 个，diff 为空；Go/TS/YAML 同步有测试锁定。但发现 **spec 自身内部不一致**：§27.5(L4613) 声称 `external_message.updated`「已登记于 15.6」，§15.6 实无此事件 → Q-11
+- 结果: PASS（开发方实现与权威登记节一致；不一致在 spec 侧）
+- 关联 bug: 无（Q-11 为规格问题）
+
+### T-022  [PASS]
+- 时间戳: 2026-11-16T13:02:00Z
+- 对应: Day 05（mocktarget 靶场对抗探针，测试方自研） / 里程碑 M0
+- 测试项: 开发方用例外行为：Bearer 头路径（含大小写/双空格边界）、新建对象归属隔离（A 建 B 读 403）、list 跨账号泄漏、限流 429（121 次触发 + 跨账号不影响）、redirect/slow 行为与上限截断、reset 清理
+- 命令: 临时探针（cmd/mocktarget/zz_probe_test.go，跑完即删）`go test -run TestProbe -v`
+- 预期: 全部符合设计语义
+- 实际: 5/5 PASS——Bearer token-a 200 / 小写 bearer 401 / 双空格 401；A 新建对象 B 读 403；A 列表不含 order-2001；第 121 次 429 且 B 不受影响；redirect 302+Location 正确；slow 50ms 与 5000ms 截断正确；reset 后新建对象 404
+- 结果: PASS
+- 关联 bug: 无
+- 备注: 行为记录（供 Day 19+ Policy Proxy 测试参考）：Bearer 前缀大小写敏感；404/403 区分是故意的 IDOR 差异靶点；/admin/reset 无鉴权（仅 127.0.0.1 测试件）；/redirect 为开放重定向（by design 测重定向策略）
+
 ---
 
 ## 代码质量审计（2026-11-16 首轮，随测试执行，Owner 指令新增）
@@ -261,6 +292,8 @@
 | Q-8 | 低 | api/schemas/policy.schema.json:37 + internal/canon/canonical.go:84 | `format:"date-time"` 未断言：santhosh-tekuri/jsonschema v6 默认不校验 format，垃圾串 `"not-a-date"` 实测通过（T-018 S2）。授权窗口 valid_until 是 §45 硬停依据，坏日期应在校验层就拒 | ValidateAgainst 编译 schema 时启用 format 断言（该库需显式开启），或应用层装载 Policy 时显式 time.Parse |
 | Q-9 | info | internal/canon（JCS 数字语义） | 实测 2^53+1 规范化为 9007199254740992（ECMAScript double 舍入，RFC 8785 规定行为）：>2^53 的整数在 digest 里会塌缩，两个不同大数可能同 digest。纳秒时间戳(~1.7e18)最易踩 | §47.1 已规定时间字段不入 digest（正确）；建议 canon 包文档补一句「digest 载荷数值字段必须 <2^53，更大数用字符串」，防后续模块误用 |
 | Q-10 | info | api/schemas 多处 | 宽松点：planpatch op items 无 additionalProperties:false 且 op 载荷未约束（实测任意字段放行）；policy methods.endpoint_rules items 无约束；runtime.max_cost 为空 schema `{}` | M0 冻结日的有意留白可接受；后续扩展 op 载荷时注意收口，防止载荷漂移进 digest 锚 |
+| Q-11 | 低 | docs spec §27.5(L4613) × §15.6 | **spec 内部不一致**：§27.5 声称 `external_message.updated`「已登记于 15.6」，§15.6 实无此事件（49 个里没有）。开发方实现忠实跟随 §15.6（五方对账 49/49 一致，实现无误）。§27.5 的多窗口消息/Handoff 功能要用这个事件 | 契约新鲜期决策便宜：要么 §15.6+events.yaml 补第 50 个事件（重跑 gen-contracts），要么改 §27.5 措辞并给 Day 12+ 留跟踪项。需 Owner 拍板 |
+| Q-12 | 低 | cmd/gen-contracts/main.go goScalar/tsScalar/goType | 类型映射 default 分支**静默回退 string**：events.yaml/openapi.yaml 里类型拼错（如 `integre`）会静默生成 Go/TS string 字段，不报错——与 Q-7 同款「契约工具链静默吞错」模式 | default 分支改为返回错误（生成器响亮失败）；补一个拼错类型的负向用例 |
 
 **做得好的（保持）**：迁移器版本记录与 DDL 同事务（原子）；建表按依赖序 + Down 严格逆序；Day 02 复合外键设计纯净（无冗余单列 FK）；全部查询参数化；t.TempDir/t.Cleanup 测试卫生；PRAGMA 走 DSN（per-connection，不踩连接池坑）；注释全程带 spec 引用可回溯；BUG-001 教训已固化进 .gitignore 注释。
 
@@ -275,6 +308,8 @@
 **复测结论（T-014，2026-11-16T10:15Z）：Q-1~Q-6 全部修复确认，关闭。** 新增测试质量核验：`TestCrossRunFindingLinkCompositeFK` 含正向用例（合法跨 Run 关联应被接受）+ 反向用例（脏链接拒绝）——双向都测，写法正确；迁移器白盒测试默认模式即跑。一条约定备忘（info，非问题）：本次以**就地编辑 0002_full.sql** 方式落实修复，当前无持久库（测试库全是临时目录）所以安全；Day 06 出现持久库后，已推送迁移文件应视为不可变，后续 schema 修正一律走新增迁移文件。
 
 **Day 04 审计补充（T-017/T-018，2026-11-16T12:15Z）：新增 Q-7(中)/Q-8(低)/Q-9/Q-10(info)。** JCS 实现本体在 RFC 8785 全部硬边界合规（UTF-16 键序/转义归一/-0/指数/数组敏感/空白，对抗探针实测）；问题集中在契约 Schema 的收口：Q-7 红线开关名拼错被静默放行（additionalProperties:true）、Q-8 日期格式未断言。**契约已冻结，Q-7/Q-8 建议开发方在进入 Day 05 前处置**（改 schema 文件本身即可，尚无代码依赖旧版宽松行为）。
+
+**Day 05 审计（T-020~T-022，2026-11-16T13:02Z，M0 收尾）：新增 Q-11(低)/Q-12(低)。** 五方事件对账 49/49 全一致、mocktarget 对抗探针 5/5 过；新发现集中在工具链与规格侧：Q-11 spec §27.5 引用未登记事件（实现无误，需 Owner 决策补登记或改措辞）、Q-12 生成器类型拼错静默回退 string（与 Q-7 同款模式）。**M0（Day 01-05）至此全部验收通过。**
 验证：默认 build/vet/test 全绿（+3 迁移器内部测试）；`-tags sqlite_modernc` 真库 11/11 PASS。请复测确认。
 
 **开发方回应（Q-7~Q-10，commit `dcafa37`，已复测关闭 T-019）**：契约冻结日对抗审计质量高，JCS 本体全硬边界合规的独立复验很有价值。逐条处置如下，均在进入 Day 05 前完成：
