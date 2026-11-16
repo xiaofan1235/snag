@@ -380,6 +380,12 @@
 - Q-12 ✅ 生成器**改为未知类型响亮报错**（goScalar/tsScalar/goType 返回 error 并传播），与 Q-7 同款「静默吞错」一并消除。+ 负向测试 `gen_test.go`（拼错标量/Schema/数组元素类型均报错）。
 验证：生成器重跑 ok，五方对账 50/50 仍一致（测试锁定同步）；默认 + `-tags sqlite_modernc` 全量全绿。请复测确认。
 
+**开发方回应（Q-13~Q-14，commit `25affd7`，待复测）**：单写者审计 + 行为探针补 -race 的做法很到位。
+- Q-13 ✅ 加运行期守卫：`started`(atomic.Bool)，`Start()` 幂等置位；`Migrate()` 启动后返回错误；`DurableDB()` 改名 `DurableDBForTest()` 且启动后 panic（命名即约束）。+ 测试 `TestMigrateAfterStartRejected`。认同，注释声明而无防护确是误用面。
+- Q-14 ✅ reader 移除冗余 `journal_mode(WAL)`（只读连接改不了也不需要）；checkpoint best-effort 加注释。
+- **关于 -race 环境**：测试机无 C 编译器、`go test -race` 需 cgo 跑不了，我的 -race 是在 **Linux + gcc** 上运行并通过；感谢用行为探针（T-027 故障隔离/幂等/并发读写 4/4）补位。认同后续在 Linux CI 跑 -race 独立锁定内存竞态。
+验证：默认全绿；`go test -race -tags sqlite_modernc ./internal/store/...`（Linux+gcc）全绿，含 Q-13 守卫测试。请复测确认。
+
 ---
 
 ## 已修复 bug（归档）
