@@ -43,15 +43,23 @@ transitions:
   - { event: enqueue,       from: PREFLIGHT,  to: QUEUED }     # 资源忙：controller 据 guard 决定
   - { event: start,         from: PREFLIGHT,  to: RUNNING }
   - { event: admit,         from: QUEUED,     to: RUNNING }    # 资源释放，准入
-  - { event: pause,         from: RUNNING,    to: PAUSING }
+  # pause：§9.7 L2458「所有非终态均可进入 PAUSING」。例外 STOPPING——它已提交 stop、朝 STOPPED
+  # 收敛，允许 pause 会反悔 stop，违背 §9.7 Stop 的不可逆语义，故此处排除（Q-15 处置，已标注报备）。
+  - event: pause
+    from: [DRAFT, PREFLIGHT, QUEUED, RUNNING, PAUSING, PAUSED, RESUMING, BLOCKED, EXITING]
+    to: PAUSING
   - { event: pause_drained, from: PAUSING,    to: PAUSED }
   - { event: resume,        from: PAUSED,     to: RESUMING }
   - { event: resume_ready,  from: RESUMING,   to: RUNNING }
   - { event: block,         from: RUNNING,    to: BLOCKED }    # 需重认证/等审批
   - { event: unblock,       from: BLOCKED,    to: RESUMING }   # 恢复统一经 RESUMING
   - { event: exit,          from: RUNNING,    to: EXITING }    # 目标达成/优雅退出
+  - { event: reopen,        from: EXITING,    to: RUNNING }    # 门禁发现新工作回 RUNNING（§5.1 L1336/L1351）
   - { event: complete,      from: EXITING,    to: COMPLETED }
-  - { event: partial,       from: EXITING,    to: PARTIAL }
+  # partial：RUNNING 直达（§5.1 图 L1340）、BLOCKED 审批期授权到期/预算耗尽（L1348）、EXITING 门禁判部分完成。
+  - event: partial
+    from: [RUNNING, BLOCKED, EXITING]
+    to: PARTIAL
   - { event: stop_drained,  from: STOPPING,   to: STOPPED }
   # Stop/Fail：从所有非终态进入。
   - event: stop

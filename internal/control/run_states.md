@@ -13,14 +13,25 @@ stateDiagram-v2
     PREFLIGHT --> QUEUED: enqueue
     PREFLIGHT --> RUNNING: start
     QUEUED --> RUNNING: admit
+    DRAFT --> PAUSING: pause
+    PREFLIGHT --> PAUSING: pause
+    QUEUED --> PAUSING: pause
     RUNNING --> PAUSING: pause
+    PAUSING --> PAUSING: pause
+    PAUSED --> PAUSING: pause
+    RESUMING --> PAUSING: pause
+    BLOCKED --> PAUSING: pause
+    EXITING --> PAUSING: pause
     PAUSING --> PAUSED: pause_drained
     PAUSED --> RESUMING: resume
     RESUMING --> RUNNING: resume_ready
     RUNNING --> BLOCKED: block
     BLOCKED --> RESUMING: unblock
     RUNNING --> EXITING: exit
+    EXITING --> RUNNING: reopen
     EXITING --> COMPLETED: complete
+    RUNNING --> PARTIAL: partial
+    BLOCKED --> PARTIAL: partial
     EXITING --> PARTIAL: partial
     STOPPING --> STOPPED: stop_drained
     DRAFT --> STOPPING: stop
@@ -53,14 +64,25 @@ stateDiagram-v2
 | PREFLIGHT | enqueue | QUEUED |
 | PREFLIGHT | start | RUNNING |
 | QUEUED | admit | RUNNING |
+| DRAFT | pause | PAUSING |
+| PREFLIGHT | pause | PAUSING |
+| QUEUED | pause | PAUSING |
 | RUNNING | pause | PAUSING |
+| PAUSING | pause | PAUSING |
+| PAUSED | pause | PAUSING |
+| RESUMING | pause | PAUSING |
+| BLOCKED | pause | PAUSING |
+| EXITING | pause | PAUSING |
 | PAUSING | pause_drained | PAUSED |
 | PAUSED | resume | RESUMING |
 | RESUMING | resume_ready | RUNNING |
 | RUNNING | block | BLOCKED |
 | BLOCKED | unblock | RESUMING |
 | RUNNING | exit | EXITING |
+| EXITING | reopen | RUNNING |
 | EXITING | complete | COMPLETED |
+| RUNNING | partial | PARTIAL |
+| BLOCKED | partial | PARTIAL |
 | EXITING | partial | PARTIAL |
 | STOPPING | stop_drained | STOPPED |
 | DRAFT | stop | STOPPING |

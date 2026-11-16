@@ -123,9 +123,16 @@ func TestKeyTransitions(t *testing.T) {
 		{domain.RunExiting, control.EventComplete, domain.RunCompleted, true},
 		{domain.RunExiting, control.EventPartial, domain.RunPartial, true},
 		{domain.RunStopping, control.EventStopDrained, domain.RunStopped, true},
-		// 非法：DRAFT 收到 pause、RUNNING 收到 preflight。
-		{domain.RunDraft, control.EventPause, domain.RunDraft, false},
+		// Q-15 补的转移：
+		{domain.RunQueued, control.EventPause, domain.RunPausing, true},    // ① pause 扩至非终态（§9.7）
+		{domain.RunBlocked, control.EventPause, domain.RunPausing, true},   // ①
+		{domain.RunBlocked, control.EventPartial, domain.RunPartial, true}, // ② 审批期授权到期（§5.1 L1348）
+		{domain.RunRunning, control.EventPartial, domain.RunPartial, true}, // ② RUNNING 直达（图 L1340）
+		{domain.RunExiting, control.EventReopen, domain.RunRunning, true},  // ③ 门禁发现新工作（L1336）
+		// 非法：STOPPING 收到 pause（有意排除，stop 不可被 pause 反悔）、RUNNING 收到 preflight、DRAFT 收到 resume。
+		{domain.RunStopping, control.EventPause, domain.RunStopping, false},
 		{domain.RunRunning, control.EventPreflight, domain.RunRunning, false},
+		{domain.RunDraft, control.EventResume, domain.RunDraft, false},
 	}
 	for _, c := range cases {
 		to, ok := control.Next(c.from, c.ev)

@@ -19,6 +19,7 @@ const (
 	EventBlock        Event = "block"
 	EventUnblock      Event = "unblock"
 	EventExit         Event = "exit"
+	EventReopen       Event = "reopen"
 	EventComplete     Event = "complete"
 	EventPartial      Event = "partial"
 	EventStopDrained  Event = "stop_drained"
@@ -27,7 +28,7 @@ const (
 )
 
 // AllEvents 是全部事件（供穷举/属性测试）。
-var AllEvents = []Event{EventPreflight, EventEnqueue, EventStart, EventAdmit, EventPause, EventPauseDrained, EventResume, EventResumeReady, EventBlock, EventUnblock, EventExit, EventComplete, EventPartial, EventStopDrained, EventStop, EventFail}
+var AllEvents = []Event{EventPreflight, EventEnqueue, EventStart, EventAdmit, EventPause, EventPauseDrained, EventResume, EventResumeReady, EventBlock, EventUnblock, EventExit, EventReopen, EventComplete, EventPartial, EventStopDrained, EventStop, EventFail}
 
 // AllStates 是全部状态。
 var AllStates = []domain.RunState{domain.RunDraft, domain.RunPreflight, domain.RunQueued, domain.RunRunning, domain.RunPausing, domain.RunPaused, domain.RunResuming, domain.RunBlocked, domain.RunExiting, domain.RunStopping, domain.RunCompleted, domain.RunPartial, domain.RunStopped, domain.RunFailed}
@@ -49,14 +50,25 @@ var runTransitions = map[smKey]domain.RunState{
 	{domain.RunPreflight, EventEnqueue}:    domain.RunQueued,
 	{domain.RunPreflight, EventStart}:      domain.RunRunning,
 	{domain.RunQueued, EventAdmit}:         domain.RunRunning,
+	{domain.RunDraft, EventPause}:          domain.RunPausing,
+	{domain.RunPreflight, EventPause}:      domain.RunPausing,
+	{domain.RunQueued, EventPause}:         domain.RunPausing,
 	{domain.RunRunning, EventPause}:        domain.RunPausing,
+	{domain.RunPausing, EventPause}:        domain.RunPausing,
+	{domain.RunPaused, EventPause}:         domain.RunPausing,
+	{domain.RunResuming, EventPause}:       domain.RunPausing,
+	{domain.RunBlocked, EventPause}:        domain.RunPausing,
+	{domain.RunExiting, EventPause}:        domain.RunPausing,
 	{domain.RunPausing, EventPauseDrained}: domain.RunPaused,
 	{domain.RunPaused, EventResume}:        domain.RunResuming,
 	{domain.RunResuming, EventResumeReady}: domain.RunRunning,
 	{domain.RunRunning, EventBlock}:        domain.RunBlocked,
 	{domain.RunBlocked, EventUnblock}:      domain.RunResuming,
 	{domain.RunRunning, EventExit}:         domain.RunExiting,
+	{domain.RunExiting, EventReopen}:       domain.RunRunning,
 	{domain.RunExiting, EventComplete}:     domain.RunCompleted,
+	{domain.RunRunning, EventPartial}:      domain.RunPartial,
+	{domain.RunBlocked, EventPartial}:      domain.RunPartial,
 	{domain.RunExiting, EventPartial}:      domain.RunPartial,
 	{domain.RunStopping, EventStopDrained}: domain.RunStopped,
 	{domain.RunDraft, EventStop}:           domain.RunStopping,

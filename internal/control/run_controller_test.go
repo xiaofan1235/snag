@@ -109,6 +109,34 @@ func TestControllerApplyLifecycle(t *testing.T) {
 	}
 }
 
+// Q-15 ③：EXITING 门禁发现新工作时经 reopen 回 RUNNING（而非误终结）。
+func TestControllerExitingReopen(t *testing.T) {
+	if !sqlite.Registered() {
+		t.Skip("未接入 SQLite 驱动")
+	}
+	path := filepath.Join(t.TempDir(), "c.db")
+	w, _ := store.OpenWriter(path)
+	_ = w.Migrate()
+	w.Start()
+	t.Cleanup(func() { _ = w.Close() })
+	ctx := context.Background()
+	_ = w.Durable(ctx, func(tx *sql.Tx) error {
+		tx.Exec(`INSERT INTO workspaces (id, name, memory_project_key, created_at) VALUES (?,?,?,?)`,
+			"ws-1", "a", "m", "2026-11-16T00:00:00Z")
+		_, e := tx.Exec(`INSERT INTO runs (id, workspace_id, name, state, authorization_scope_digest, created_at)
+			VALUES (?,?,?,?,?,?)`, "run-1", "ws-1", "r", "RUNNING", "d", "2026-11-16T00:00:00Z")
+		return e
+	})
+	c := control.NewController(w)
+	if got, err := c.Apply(ctx, "run-1", control.EventExit); err != nil || got != domain.RunExiting {
+		t.Fatalf("exit 应到 EXITING: %s %v", got, err)
+	}
+	// 门禁发现新工作 → reopen 回 RUNNING。
+	if got, err := c.Apply(ctx, "run-1", control.EventReopen); err != nil || got != domain.RunRunning {
+		t.Fatalf("reopen 应回 RUNNING: %s %v", got, err)
+	}
+}
+
 // 非法迁移中途：RUNNING 收到 preflight 应被拒且不改库。
 func TestControllerRejectsIllegal(t *testing.T) {
 	if !sqlite.Registered() {
