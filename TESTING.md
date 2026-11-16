@@ -36,7 +36,7 @@
 
 | Bug 编号 | 发现时间 | 对应 Day | 现象 | 严重度 | 状态 |
 |---|---|---|---|---|---|
-| BUG-001 | 2026-11-16T08:55Z | Day 01 | `internal/domain/coverage.go` 整个文件缺失（未提交），`domain_test.go:219` 引用 `domain.CoverageCell` 导致 `go vet` / `go test` 编译失败，8 个测试用例全部被阻断。`go build ./...` 不编译测试文件所以能过——**PROGRESS.md 记录的"go build/vet/test 全绿；8/8 测试"与仓库实际不符**（推测开发本地存在 coverage.go，推送时漏提交）。day-01 §2 文件清单明确含 `coverage.go`，§43.3 权威表清单含 `coverage_cells`。修复：补 `internal/domain/coverage.go`（`CoverageCell` struct，字段照 §4.1 `coverage_cells`：run_id/module_key/endpoint_id/evidence_ids/status 等），无需改测试 | 高（阻断 Day 01 全部测试验收） | 待修复 |
+| BUG-001 | 2026-11-16T08:55Z | Day 01 | `internal/domain/coverage.go` 整个文件缺失（未提交），`domain_test.go:219` 引用 `domain.CoverageCell` 导致 `go vet` / `go test` 编译失败，8 个测试用例全部被阻断。`go build ./...` 不编译测试文件所以能过——**PROGRESS.md 记录的"go build/vet/test 全绿；8/8 测试"与仓库实际不符**（推测开发本地存在 coverage.go，推送时漏提交）。day-01 §2 文件清单明确含 `coverage.go`，§43.3 权威表清单含 `coverage_cells`。修复：补 `internal/domain/coverage.go`（`CoverageCell` struct，字段照 §4.1 `coverage_cells`：run_id/module_key/endpoint_id/evidence_ids/status 等），无需改测试 | 高（阻断 Day 01 全部测试验收） | ✅已修复待复测（d9d9c62） |
 
 ---
 
@@ -101,4 +101,4 @@
 
 | Bug 编号 | 修复时间 | 修复 Commit | 复测结果 |
 |---|---|---|---|
-| —— | —— | —— | —— |
+| BUG-001 | 2026-11-16 | `d9d9c62` | 待本地模型复测（复测 T-002 `go vet ./...`、T-003 `go test ./internal/domain/...`）。开发方已在全新 clone 验证：coverage.go 入库，build/vet/test 全绿。根因：`.gitignore` 的 `coverage.*` 误伤源码，已改为具体产物名并补提交；另采纳 T-005 建议加 `.gitattributes`(行尾 LF) |
