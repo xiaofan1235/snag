@@ -87,7 +87,11 @@ func genEvents(path string) error {
 		fmt.Fprintf(&b, "// %sPayload —— %s\n", pascal(n), ev.Description)
 		fmt.Fprintf(&b, "type %sPayload struct {\n", pascal(n))
 		for _, f := range sortedKeys(ev.Payload) {
-			fmt.Fprintf(&b, "\t%s %s `json:%q`\n", pascal(f), goScalar(ev.Payload[f]), f)
+			gt, err := goScalar(ev.Payload[f])
+			if err != nil {
+				return fmt.Errorf("事件 %s 字段 %s: %w", n, f, err)
+			}
+			fmt.Fprintf(&b, "\t%s %s `json:%q`\n", pascal(f), gt, f)
 		}
 		b.WriteString("}\n\n")
 	}
@@ -116,7 +120,11 @@ func genEvents(path string) error {
 		ev := doc.Events[n]
 		fmt.Fprintf(&t, "export interface %sPayload {\n", pascal(n))
 		for _, f := range sortedKeys(ev.Payload) {
-			fmt.Fprintf(&t, "  %s: %s;\n", f, tsScalar(ev.Payload[f]))
+			ty, err := tsScalar(ev.Payload[f])
+			if err != nil {
+				return fmt.Errorf("事件 %s 字段 %s (TS): %w", n, f, err)
+			}
+			fmt.Fprintf(&t, "  %s: %s;\n", f, ty)
 		}
 		t.WriteString("}\n\n")
 	}
@@ -213,7 +221,10 @@ func genOpenAPI(path string) error {
 		}
 		fmt.Fprintf(&body, "type %s struct {\n", name)
 		for _, f := range sortedKeys(s.Properties) {
-			gt := goType(s.Properties[f])
+			gt, err := goType(s.Properties[f])
+			if err != nil {
+				return fmt.Errorf("Schema %s 字段 %s: %w", name, f, err)
+			}
 			if strings.Contains(gt, "json.RawMessage") {
 				needJSON = true
 			}
@@ -241,54 +252,62 @@ func genOpenAPI(path string) error {
 
 // ---------- 类型映射 ----------
 
-func goScalar(t string) string {
+// Q-12：未知类型一律响亮失败，不静默回退 string——契约里拼错类型(如 integre)必须报错。
+
+func goScalar(t string) (string, error) {
 	switch t {
 	case "string":
-		return "string"
+		return "string", nil
 	case "integer":
-		return "int64"
+		return "int64", nil
 	case "number":
-		return "float64"
+		return "float64", nil
 	case "boolean":
-		return "bool"
+		return "bool", nil
 	default:
-		return "string"
+		return "", fmt.Errorf("未知标量类型 %q（payload 字段类型只能是 string/integer/number/boolean）", t)
 	}
 }
 
-func tsScalar(t string) string {
+func tsScalar(t string) (string, error) {
 	switch t {
+	case "string":
+		return "string", nil
 	case "integer", "number":
-		return "number"
+		return "number", nil
 	case "boolean":
-		return "boolean"
+		return "boolean", nil
 	default:
-		return "string"
+		return "", fmt.Errorf("未知标量类型 %q", t)
 	}
 }
 
-func goType(p prop) string {
+func goType(p prop) (string, error) {
 	if p.Ref != "" {
-		return refName(p.Ref)
+		return refName(p.Ref), nil
 	}
 	switch p.Type {
 	case "string":
-		return "string"
+		return "string", nil
 	case "integer":
-		return "int64"
+		return "int64", nil
 	case "number":
-		return "float64"
+		return "float64", nil
 	case "boolean":
-		return "bool"
+		return "bool", nil
 	case "object":
-		return "json.RawMessage"
+		return "json.RawMessage", nil
 	case "array":
 		if p.Items != nil {
-			return "[]" + goType(*p.Items)
+			inner, err := goType(*p.Items)
+			if err != nil {
+				return "", err
+			}
+			return "[]" + inner, nil
 		}
-		return "[]any"
+		return "[]any", nil
 	default:
-		return "any"
+		return "", fmt.Errorf("未知 Schema 类型 %q（只支持 string/integer/number/boolean/object/array/$ref）", p.Type)
 	}
 }
 

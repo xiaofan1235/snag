@@ -25,6 +25,7 @@ const (
 	EgressUpdated            EventType = "egress.updated"
 	EvidenceCreated          EventType = "evidence.created"
 	ExchangeCreated          EventType = "exchange.created"
+	ExternalMessageUpdated   EventType = "external_message.updated"
 	FindingUpdated           EventType = "finding.updated"
 	HypothesisUpdated        EventType = "hypothesis.updated"
 	IdentityUpdated          EventType = "identity.updated"
@@ -78,6 +79,7 @@ var All = []EventType{
 	EgressUpdated,
 	EvidenceCreated,
 	ExchangeCreated,
+	ExternalMessageUpdated,
 	FindingUpdated,
 	HypothesisUpdated,
 	IdentityUpdated,
@@ -239,6 +241,14 @@ type ExchangeCreatedPayload struct {
 	ActionID   string `json:"action_id"`
 	ExchangeID string `json:"exchange_id"`
 	RunID      string `json:"run_id"`
+}
+
+// ExternalMessageUpdatedPayload —— 外部消息（如 Slack）状态更新（§27.5 多窗口消息/Handoff）
+type ExternalMessageUpdatedPayload struct {
+	ExternalMessageID string `json:"external_message_id"`
+	RunID             string `json:"run_id"`
+	SourceKind        string `json:"source_kind"`
+	State             string `json:"state"`
 }
 
 // FindingUpdatedPayload —— Finding 状态更新

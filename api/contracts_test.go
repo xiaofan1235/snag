@@ -17,7 +17,7 @@ import (
 var expectedEvents = []string{
 	"run.updated", "run.exit_blocked", "preflight.updated",
 	"job.created", "job.updated", "attempt.updated", "agent.progress", "activity.created",
-	"plan.updated", "action.updated", "command.completed", "operation.updated", "directive.updated", "exchange.created",
+	"plan.updated", "action.updated", "command.completed", "operation.updated", "directive.updated", "exchange.created", "external_message.updated",
 	"evidence.created", "asset.updated", "discovery.updated", "artifact.created", "resource.updated",
 	"hypothesis.updated", "finding.updated", "verification.updated", "retest.updated", "coverage.updated",
 	"approval.requested", "approval.resolved", "budget.updated", "provider.updated", "identity.updated", "egress.updated", "sandbox.updated",

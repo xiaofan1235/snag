@@ -20,6 +20,7 @@ export type EventType =
   | "egress.updated"
   | "evidence.created"
   | "exchange.created"
+  | "external_message.updated"
   | "finding.updated"
   | "hypothesis.updated"
   | "identity.updated"
@@ -72,6 +73,7 @@ export const ALL_EVENTS: EventType[] = [
   "egress.updated",
   "evidence.created",
   "exchange.created",
+  "external_message.updated",
   "finding.updated",
   "hypothesis.updated",
   "identity.updated",
@@ -214,6 +216,13 @@ export interface ExchangeCreatedPayload {
   action_id: string;
   exchange_id: string;
   run_id: string;
+}
+
+export interface ExternalMessageUpdatedPayload {
+  external_message_id: string;
+  run_id: string;
+  source_kind: string;
+  state: string;
 }
 
 export interface FindingUpdatedPayload {

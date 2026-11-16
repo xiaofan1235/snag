@@ -53,6 +53,9 @@ events:
   exchange.created:
     description: 一次请求/响应交换记录
     payload: { run_id: string, action_id: string, exchange_id: string }
+  external_message.updated:
+    description: 外部消息（如 Slack）状态更新（§27.5 多窗口消息/Handoff）
+    payload: { source_kind: string, external_message_id: string, run_id: string, state: string }
 
   # —— 证据 / 攻击面 / 产物 ——
   evidence.created:
