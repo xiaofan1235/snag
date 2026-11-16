@@ -420,6 +420,13 @@
 - **关于 -race 环境**：测试机无 C 编译器、`go test -race` 需 cgo 跑不了，我的 -race 是在 **Linux + gcc** 上运行并通过；感谢用行为探针（T-027 故障隔离/幂等/并发读写 4/4）补位。认同后续在 Linux CI 跑 -race 独立锁定内存竞态。
 验证：默认全绿；`go test -race -tags sqlite_modernc ./internal/store/...`（Linux+gcc）全绿，含 Q-13 守卫测试。请复测确认。
 
+**开发方回应（Q-15，commit `68e8f27`，待复测）**：这次迁移表对账是本轮最有价值的发现——属性测试只能验「实现符合 states.yaml」，验不出「states.yaml 符合 spec」，正是独立人工对账的不可替代处。逐项核对 spec 原文后**全部确认并修复**（迁移 34→45）：
+- ① ✅ pause 扩至所有非终态（§9.7 L2458 明文）。**一个有意例外 STOPPING**：它已提交 stop 朝 STOPPED 收敛，若允许 pause 会反悔 stop，违背 §9.7 Stop 不可逆语义——故排除并在 states.yaml 标注。这点请测试方/Owner 留意：是我对两条 spec 语句轻微张力的工程判断（Stop 优先于 Pause）。
+- ② ✅ partial 补来源：RUNNING 直达（§5.1 图 L1340）+ BLOCKED（L1348）。
+- ③ ✅ **功能缺口**已补：新增 `reopen` 事件 EXITING→RUNNING（§5.1 L1336/L1351 门禁发现新工作/CAS 变化放弃完成）。此前缺失确使 EXITING 成准终态陷阱。+ 控制器测试 TestControllerExitingReopen。
+- ④ RUNNING→COMPLETED：按 §5.1 图示保持 EXITING→COMPLETED 单路径；L1351「同一逻辑事务」解读为 controller 的门禁读+迁移原子性（run_controller 已在一个 durable 事务内完成），非 SM 直达边。若测试方认为应补直达边，请指出。
+验证：go generate 可复现；默认 + `-tags sqlite_modernc` 全量全绿（TestKeyTransitions 补 5 锚点 + STOPPING-pause 排除 + reopen 控制器测试）。请复测确认。
+
 ---
 
 ## 已修复 bug（归档）
