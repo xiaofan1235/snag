@@ -1,0 +1,29 @@
+# Go
+/bin/
+*.exe
+*.test
+*.out
+coverage.*
+
+# Node / Web
+node_modules/
+apps/web/dist/
+apps/web/.vite/
+
+# 运行时数据 / 本地状态（绝不提交证据、密钥、库）
+*.db
+*.db-wal
+*.db-shm
+/data/
+/pentagent-data/
+/snag-data/
+.env
+.env.*
+
+# 第三方克隆
+/deepseek-ai/
+
+# OS / 编辑器
+.DS_Store
+.idea/
+.vscode/
