@@ -525,6 +525,27 @@
 
 **🎉 里程碑 M1（Day 06-13）全部验收通过：单写者 Store、Run/Job 状态机、Claim/Lease/Fencing、Event Journal/Outbox、幂等账本、Reconciler、CLI/API 骨架。M0+M1 = Day 01-13 全绿，Q-1~Q-18 闭环（Q-18 info 跟踪 Day 40）。**
 
+### T-046  [PASS]
+- 时间戳: 2026-11-17T08:45:00Z
+- 对应: Day 14（dev-plan/day-14.md §7，提交 3af1c1d，手动触发） / 里程碑 M2 开端
+- 测试项: Day 14 默认套件 + `go generate` 同步
+- 命令: `go build/vet/test ./... -count=1` + `go generate ./...` 后 git status 检查
+- 预期: 全绿；生成物同步
+- 实际: 15 包全绿（新增 internal/execution）；生成物同步 ✅
+- 结果: PASS
+- 关联 bug: 无
+
+### T-047  [PASS]
+- 时间戳: 2026-11-17T08:50:00Z
+- 对应: Day 14（§5.3 对账 + 不变量探针 + 代码审计） / 里程碑 M2
+- 测试项: action_states.yaml 对照 §5.3 逐条（9 态/正常链/审批分支/崩溃双出口/取消范围/终态）；行为探针六组：正常链到 RECORDED 终态、dispatch→unknown→reconcile_record/cancel 双出口、**DISPATCHED 与 OUTCOME_UNKNOWN 均拒 cancel（不得绕过对账）**、3 终态×12 事件吸收、审批双分支、digest 嵌套键序不变性；action.go 审读
+- 命令: 临时探针（internal/execution/zz_probe_test.go，已删）`go test -run TestProbeAction -v`
+- 预期: 与 §5.3 完全一致
+- 实际: 六组全过；yaml 对照零缺口（设计锚点齐全：取消排除 DISPATCHED 有书面理由、失败走 EXECUTED+failure_class 非独立终态、IdempotencyClass 三值按 §43.8 细化）
+- 结果: PASS
+- 关联 bug: 无
+- 备注: CanonicalDigest 直接用 Day 04 的 canon 包（JCS）——契约冻结的复利兑现。零新审计发现
+
 ---
 
 ## 代码质量审计（2026-11-16 首轮，随测试执行，Owner 指令新增）
