@@ -461,48 +461,92 @@ textarea.sn-input {
   }
 }
 
-/* ===== Toast（D2.11）——右下角堆叠 ===== */
+/* ===== Toast（D2.11 / §16.35 反馈二重做）——右下角堆叠，深色反转卡片 ===== */
 .sn-toast-region {
   position: fixed;
   right: var(--sp-5);
   bottom: var(--sp-5);
   display: flex;
   flex-direction: column;
-  gap: var(--sp-2);
+  gap: var(--sp-1); /* 堆叠间距收紧 */
   z-index: var(--z-toast);
-  max-width: 360px;
+  max-width: 380px;
 }
+/* 深色反转：--ink-1 底 + 反色文字，与浅色画面对比更强、更聚焦。 */
 .sn-toast {
   display: flex;
   align-items: flex-start;
   gap: var(--sp-2);
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-left: 3px solid var(--ink-3);
+  background: var(--ink-1);
+  color: var(--bg-surface);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius);
   box-shadow: var(--shadow-2);
-  padding: var(--sp-3);
+  padding: var(--sp-3) var(--sp-3) var(--sp-3) var(--sp-2);
   font-size: var(--fs-sm);
-  animation: sn-pop var(--dur-2) var(--ease);
+  line-height: var(--lh-tight);
+  /* 进入：上移 + 渐显（替代原 sn-pop 的弹跳玩具感） */
+  animation: sn-toast-in var(--dur-2) var(--ease);
 }
-.sn-toast[data-tone="ok"] {
-  border-left-color: var(--ok);
+/* 色条换成左侧语义色竖条 + tone 图标着色（图标按 tone 上色，正文反白）。 */
+.sn-toast-icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-1);
+  background: var(--ink-3);
+  margin-top: 1px;
 }
-.sn-toast[data-tone="danger"] {
-  border-left-color: var(--danger);
+.sn-toast[data-tone="ok"] .sn-toast-icon {
+  background: var(--ok);
 }
-.sn-toast[data-tone="warn"] {
-  border-left-color: var(--warn);
+.sn-toast[data-tone="danger"] .sn-toast-icon {
+  background: var(--danger);
 }
-.sn-toast[data-tone="info"] {
-  border-left-color: var(--info);
+.sn-toast[data-tone="warn"] .sn-toast-icon {
+  background: var(--warn);
+}
+.sn-toast[data-tone="info"] .sn-toast-icon {
+  background: var(--info);
+}
+.sn-toast-body {
+  flex: 1;
+  min-width: 0;
+}
+.sn-toast-title {
+  font-weight: 600;
+  margin-bottom: 1px;
 }
 .sn-toast-close {
-  margin-left: auto;
+  margin-left: var(--sp-1);
   background: none;
   border: none;
   color: var(--ink-3);
   cursor: pointer;
   font-size: var(--fs-md);
   line-height: 1;
+  padding: 0 2px;
+  transition: color var(--dur-1) var(--ease);
+}
+.sn-toast-close:hover {
+  color: var(--bg-surface);
+}
+@keyframes sn-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+.sn-toast[data-leaving="true"] {
+  animation: sn-toast-out var(--dur-1) var(--ease) forwards;
+}
+@keyframes sn-toast-out {
+  to {
+    opacity: 0;
+  }
 }

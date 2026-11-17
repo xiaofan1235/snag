@@ -1716,3 +1716,23 @@ observe 下：活动流里这些行为显示为「（观察模式）本会：…
 - 结构升级：图标（按 tone）+ 标题 + 正文 + 关闭，替代当前纯文本；
 - 动效：进入用位移+渐显（当前 sn-pop 弹跳感偏玩具），退出渐隐；堆叠间距收紧；
 - 验收标准：Owner 主观认可（本条为审美项，Owner 一票定稿）。
+
+### 开发方处理（2026-11-17，commit 见 PROGRESS）
+
+两条反馈均已在 daemon 接线前的 UI 打磨窗口处理：
+
+**反馈一（字体发虚）——已修**。按测试方诊断两根因同治：
+- 根因 1（antialiased 禁用 Windows 子像素渲染）：把 `-webkit-font-smoothing: antialiased` 从无条件
+  移到 `@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi)` 内——仅 Retina/高 DPI（含
+  macOS）启用灰度抗锯齿，Windows 普通 DPI 走系统子像素渲染保持锐利；body 加 `text-rendering: optimizeLegibility`。
+- 根因 2（Inter 未打包）：采信「改系统栈」方案（零加载成本、Windows 原生清晰，不引入字体文件下载），
+  `--font-ui` 改 `"Segoe UI", system-ui, "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif`，
+  mono/read 栈同步补系统回退。验收标准（Owner 本机 100%/150% 缩放中文小字号清晰）待 Owner 复看确认。
+
+**反馈二（Toast 观感）——已重做**。按改进方向落地：
+- 深色反转：`--ink-1` 底 + `--bg-surface` 反白文字，与浅色画面强对比；
+- 结构升级：tone 图标（✓/!/✕/i，按 tone 着色）+ 可选标题 + 正文 + 关闭，替代纯文本（ToastItem 增 title 字段）；
+- 动效：进入 `sn-toast-in`（上移 8px + 渐显，去掉原 sn-pop 弹跳）、退出渐隐、堆叠间距由 sp-2 收紧到 sp-1。
+- 本条为审美项，最终以 Owner 一票定稿为准。
+
+验证：apps/web 下 pnpm typecheck + test（19 文件 115 用例）+ build 全绿（CSS 10.6→11.5KB）。

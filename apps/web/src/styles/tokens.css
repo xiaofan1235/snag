@@ -38,10 +38,11 @@
   --shadow-1: 0 1px 2px rgba(42, 38, 34, 0.05);
   --shadow-2: 0 2px 8px rgba(42, 38, 34, 0.07);
 
-  /* 字体 */
-  --font-ui: "Inter", system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
-  --font-mono: "JetBrains Mono", "SF Mono", monospace;
-  --font-read: "Newsreader", Georgia, serif;
+  /* 字体（§16.35 反馈一修复）：改用系统栈，零加载成本、Windows 原生清晰。
+     原 Inter 未打包→回退不可控，小字号中文发虚；系统栈 Segoe UI/PingFang/雅黑 本机即清晰。 */
+  --font-ui: "Segoe UI", system-ui, "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, Consolas, monospace;
+  --font-read: Georgia, "Times New Roman", "Songti SC", serif;
   --fs-xs: 12px;
   --fs-sm: 13px;
   --fs-md: 14px;
@@ -107,7 +108,16 @@ body {
   font-family: var(--font-ui);
   font-size: var(--fs-md);
   line-height: var(--lh-normal);
-  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* §16.35 反馈一：antialiased 在 Windows 普通 DPI 屏禁用子像素渲染→文本发灰发虚。
+   仅在 Retina（dpr≥2，含 macOS）启用，普通 DPI 走系统子像素渲染保持锐利。 */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 }
 
 /* 统一焦点环（D2.0）：只在 :focus-visible 显示。 */

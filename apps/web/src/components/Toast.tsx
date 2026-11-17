@@ -6,9 +6,20 @@ export interface ToastItem {
   id: string;
   tone: ToastTone;
   message: ReactNode;
+  /** 可选标题（§16.35：图标 + 标题 + 正文结构）。 */
+  title?: ReactNode;
   /** 毫秒；0 表示不自动消失。 */
   duration?: number;
 }
+
+// tone → 图标符号（按 tone 着色，正文反白，§16.35 反馈二）。
+const TONE_ICON: Record<ToastTone, string> = {
+  ok: "✓",
+  warn: "!",
+  danger: "✕",
+  info: "i",
+  neutral: "·",
+};
 
 interface ToastCtx {
   push: (t: Omit<ToastItem, "id">) => string;
@@ -68,8 +79,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div className="sn-toast-region" role="region" aria-label="通知" aria-live="polite">
         {items.map((it) => (
-          <div key={it.id} className="sn-toast" data-tone={it.tone === "neutral" ? undefined : it.tone} role="status">
-            <span>{it.message}</span>
+          <div key={it.id} className="sn-toast" data-tone={it.tone} role="status">
+            <span className="sn-toast-icon" aria-hidden="true">
+              {TONE_ICON[it.tone]}
+            </span>
+            <div className="sn-toast-body">
+              {it.title && <div className="sn-toast-title">{it.title}</div>}
+              <div>{it.message}</div>
+            </div>
             <button className="sn-toast-close" aria-label="关闭通知" onClick={() => dismiss(it.id)}>
               ✕
             </button>
