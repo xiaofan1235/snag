@@ -11,13 +11,13 @@
 
 ## 当前位置
 
-**Day 10 —— Event Journal + Outbox（提交后发布）✅（已提交 `c8cebaf`）**
-下一步：**Day 11（dev-plan/day-11.md）**，等待 Owner 批准后开始。
+**Day 11 —— commands/operations 幂等账本 ✅（已提交 `aa12f99`）**
+下一步：**Day 12（dev-plan/day-12.md）**，等待 Owner 批准后开始。
 
-Claude 开发前自检：`TESTING.md` 顶部「未解决 bug」= 无（Day 09 已测 T-035/T-036，Q-17 已处置 `9c2b285`、复测 T-037 关闭）。
-✅ Day 10 已验证：`go test -race -tags sqlite_modernc ./internal/events/... ./internal/outbox/...` 全绿——
-事务回滚则无事件/无消息；提交后经 Drain 才发布到 Bus；run 内 + 全局 sequence 单调无空洞；
-publisher 失败指数退避重试不丢、成功后幂等不重发（§0.5「DB 提交后才发布」/§53.2 先存后发）。
+Claude 开发前自检：`TESTING.md` 顶部「未解决 bug」= 无（Day 10 已测 T-038/T-039，Q-18 info 已确认无需改码、随 Day 40 验收）。
+✅ Day 11 已验证：`go test -race -tags sqlite_modernc ./internal/control/...` 全绿——
+同 key 重试返回同对象、fn 只执行一次；16 并发同 key 只建一个；digest 复用与 expected_revision
+冲突均稳定错误；异步 operation 生命周期可查、终态不可变；fn 失败回滚后重试重执行（§15.7/§23 M1）。
 
 ---
 
@@ -35,7 +35,7 @@ publisher 失败指数退避重试不丢、成功后幂等不重发（§0.5「DB
 | 08 | M1 | Job 状态机 + RECONCILING + 取消语义 | ✅已完成 | `0e721aa` | 2026-11-16 | 生成器改多机通用(Run/Job)；job_states.yaml(13态/34迁移)→job_sm.gen.go；RECONCILING 进入/冻结Claim/对账超时→OUTCOME_UNRESOLVED终态+run_partial_reasons；迁移0003加reconcile_deadline；双模+race全绿 |
 | 09 | M1 | Attempt + Claim/Lease/Fencing | ✅已完成 | `33e07f3` | 2026-11-17 | internal/scheduler/{claim,lease}.go；并发Claim恰1成功(SM守卫+单写者)；增代+全局单调fencing_token；旧Attempt写入被拒；租约过期→EXPIRED+lease_expired回READY重领；schema已就绪无需新迁移；-race全绿 |
 | 10 | M1 | Event Journal + Outbox（提交后发布） | ✅已完成 | `c8cebaf` | 2026-11-17 | internal/events(Append:run+全局双序,事务内)/outbox(Enqueue+Publisher.Drain提交后发布+指数退避)；迁移0004加events.global_sequence+outbox退避列；回滚无事件/提交后才发布/序号无空洞/失败重试不丢；-race全绿 |
-| 11 | M1 | commands/operations 幂等账本 | ⬜未开始 |  |  |  |
+| 11 | M1 | commands/operations 幂等账本 | ✅已完成 | `aa12f99` | 2026-11-17 | internal/control/commands.go：Receive(查重→fn→记账,同事务)同key返回原对象/并发只建一个/fn失败回滚重执行；GuardRevision(expected_revision);异步operation CreateTx/Transition/GetOperation；只存digest不存请求体；schema就绪无需迁移；-race全绿 |
 | 12 | M1 | Reconciler + 每阻塞态超时 | ⬜未开始 |  |  |  |
 | 13 | M1 | CLI 骨架 + Pause/Resume/Stop + 故障注入 Hook | ⬜未开始 |  |  |  |
 | 14 | M2 | Action 状态机 + ActionProposal | ⬜未开始 |  |  |  |
@@ -99,3 +99,4 @@ publisher 失败指数退避重试不丢、成功后幂等不重发（§0.5「DB
 - **2026-11-17** — Day 09 完成（提交 `33e07f3`），**崩溃安全恢复机制核心**：Claim + Lease + 单调 Fencing（§4.1/§4.3 #2/§31）。新增 internal/scheduler/{claim,lease}.go；attempts 表 schema 已就绪（UNIQUE(job_id,generation)+fencing_token+generation）**无需新迁移**。**Claim**：SM 守卫 READY→CLAIMED + 单写者串行 + revision 条件更新，并发认领同一 Job 恰 1 成功（后到者读到 CLAIMED 被 SM 拒 ErrConflict，UNIQUE 末端兜底）；每次认领增 per-job generation（MAX+1）+ 发放**全局单调** fencing_token（MAX+1），写 Attempt。**设计决策**：fencing_token 选全局单调而非每 Job 计数——既满足「随 generation 单调递增」，又可直接服务 Day 17 Permit/Proxy 等共享资源的陈旧写者拒绝、无需返工；单调性由单写者串行保证，读自持久 attempts 表故跨重启存活（attempts 追加式从不删除=单调前提）。**Fencing 校验**：guardFencingTx/CheckFencing/WriteAttemptResult——写前校验令牌为当代有效值，旧 Attempt（小令牌、非当代 generation）即使进程复活也写不进（§22.4 过期提交被拒）。**Lease**：Renew（过 fencing 校验后延长，陈旧令牌拒续）；ExpireLeases（注入 now 扫过期 CLAIMED：标当代 Attempt EXPIRED + SM lease_expired 回 READY 重领）。**Job 状态机加 lease_expired: CLAIMED→READY**（认领后未执行即失联→安全重领；RUNNING 态过期牵涉已派发动作对账，耦合 Day 12 Reconciler，有意不在此处理）。domain：AttemptState 落地 RUNNING/SUBMITTED/EXPIRED 子集（§43.8）。验证：-race 全绿（16 并发 Claim 恰 1 成功 / 旧 fencing 写入被拒 / 过期增代重领 / 续租校验）。双模全绿，基线仍 1.23。下一步：Day 10。
 - **2026-11-17** — Q-17 处置（提交 `9c2b285`）。测试模型 Day 09 审计（info）：guardFencingTx 只校验「令牌=当代」不查 Job 状态，终态 Job 的当代令牌仍能过 fencing 守卫（T-036 P4）。当前无害但 Day 17 Permit/Day 18 Proxy 复用会放行终态 Job。**立即 fail-closed 硬化**（普适不变量、不预设 Day 17 设计、仅几行）：currentFencingTx 顺带读 state，guardFencingTx 先拒终态 Job（ErrConflict）。+ TestFencingRejectsTerminalJob。-race + 双模全绿。下一步：Day 10。
 - **2026-11-17** — Day 10 完成（提交 `c8cebaf`），**SSE/审计/对账的事实来源**：Event Journal + Outbox（提交后发布）。新增 internal/events/、internal/outbox/。**events.Append(tx, evt)**：事务内写事件，run 内 sequence=MAX+1 + 全局 global_sequence=MAX+1；tx 由调用方给定——与领域状态变更同事务传入即「提交失败则无事件」（§0.5）；两级序号由单写者串行（durable/bulk 同一 goroutine）保证无空洞。**outbox**：Enqueue(tx) 事务内投递，Publisher.Drain 提交后扫表→Bus→标 published、失败指数退避；bus.Publish 在任何 DB 事务之外（不占单写者、失败不回滚领域事务 §26.9）；至少一次 + published=0 守卫幂等；MemBus 内存实现（Day 40 换 SSE）。**迁移 0004**：events.global_sequence+UNIQUE（§4.2 字段清单只列 run 内 sequence，但 §3151/§4891 明确要全局单调序，属 spec 两节口径差，按 §15.6/§3151 向前补齐）+ outbox 退避列（attempts/next_attempt_at/last_error 持久化跨重启存活）。**连带**：Day 06 并发写探针不走 Append 直插 events，手工分配 per-worker 不相交 global_sequence 以满足新 UNIQUE（仅测试适配 schema 演进）。验证：-race 全绿（回滚无事件/提交后才发布/序号单调无空洞/失败退避不丢/幂等不重发）。双模全绿，基线仍 1.23。下一步：Day 11。
+- **2026-11-17** — Day 11 完成（提交 `aa12f99`），**「网络超时重试不产生重复对象」保证**：幂等命令账本。新增 internal/control/commands.go，schema 就绪无需迁移。**Receive(actorID, idemKey, reqDigest, fn)**：同一 durable 事务内「查重→执行 fn→记账」——命中 (actor,key) 返回原 resource_refs、Replayed=true、不二次执行 fn；未命中执行 fn 建对象 + 记命令行同事务原子；fn 失败整事务回滚（无命令行无对象）→重试真正重执行。并发同 key 由单写者串行保证只建一个（先到者整事务提交后后到者才查得到），PK(actor_id,idempotency_key) 末端兜底。同 key 不同 digest → ErrConflict（稳定错误）。只存 request_digest 不存原始秘密请求体（§4.2/§1163）。**GuardRevision**（§15.7 expected_revision）：目标 revision 不符→ErrConflict，table 走白名单（jobs/runs）防注入。**异步 operation**：CreateOperationTx（事务内建 ACCEPTED，可在 fn 内调用使建 op+记命令同事务）、Transition（ACCEPTED→RUNNING→SUCCEEDED/FAILED，终态不可再变）、GetOperation（只读池，供 GET /v1/operations/{id}），异步命令幂等重试返回同一 operation_id。验证：-race 全绿（同 key 同对象/fn 一次、16 并发只建一个、digest 复用、expected_revision 冲突、operation 生命周期与终态不可变、fn 失败回滚重执行）。双模全绿，基线仍 1.23。下一步：Day 12。
