@@ -10,13 +10,18 @@ import {
   FindingDetail,
   ApprovalCenter,
   CoverageMatrix,
+  ReportCenter,
+  RecoveryPreview,
+  CommandButton,
   type DashboardModel,
   type PreflightCheck,
   type FindingModel,
   type ApprovalItem,
   type CoverageModel,
+  type ReportModel,
+  type RecoveryPreviewModel,
 } from "../features";
-import { Drawer } from "../components";
+import { Drawer, ConnectionStatus } from "../components";
 import { AgentSessionPanel } from "../features/activity/ActivityStream";
 import type { EventEnvelope } from "../api/schema.gen";
 
@@ -105,7 +110,26 @@ const coverage: CoverageModel = {
   ],
 };
 
-type Tab = "dashboard" | "overview" | "wizard" | "activity" | "finding" | "approval" | "coverage";
+const report: ReportModel = {
+  id: "rep-1",
+  state: "FINALIZED",
+  reportable: [{ id: "f-1", title: "IDOR on /orders", severity: "High" }],
+  excluded: [{ id: "f-2", title: "可能的 XSS", state: "UNABLE_TO_VERIFY", reason: "零交互要求未满足" }],
+  exitGateResult: "PASSED",
+  coverageSnapshot: "rev 7",
+  partialReasons: [],
+  markdownPreview: "# 渗透测试报告\n\n## 1. IDOR on /orders\n\n账号A 可读取账号B 的订单 42（跨身份确认）。\n\n### 复现步骤 / 证据引用\n\n- Evidence ev-1 bytes[10:20]\n",
+};
+const recovery: RecoveryPreviewModel = {
+  unfinishedJobs: 2,
+  outcomeUnknownActions: 1,
+  expiredIdentities: ["账号A"],
+  staleProxies: [],
+  policyRevisionChanged: true,
+  schemaCompatible: true,
+};
+
+type Tab = "dashboard" | "overview" | "wizard" | "activity" | "finding" | "approval" | "coverage" | "report" | "recovery";
 const TABS: Array<[Tab, string]> = [
   ["dashboard", "Dashboard"],
   ["overview", "Overview"],
@@ -114,6 +138,8 @@ const TABS: Array<[Tab, string]> = [
   ["finding", "Finding"],
   ["approval", "审批"],
   ["coverage", "覆盖率"],
+  ["report", "报告"],
+  ["recovery", "恢复预览"],
 ];
 
 export function PagesDemo() {
@@ -121,7 +147,7 @@ export function PagesDemo() {
   const [session, setSession] = useState(false);
   return (
     <div>
-      <div style={{ display: "flex", gap: "var(--sp-1)", marginBottom: "var(--sp-4)", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: "var(--sp-1)", marginBottom: "var(--sp-4)", flexWrap: "wrap", alignItems: "center" }}>
         {TABS.map(([t, label]) => (
           <button
             key={t}
@@ -133,6 +159,9 @@ export function PagesDemo() {
             {label}
           </button>
         ))}
+        <span style={{ marginLeft: "auto" }}>
+          <ConnectionStatus state="LIVE" />
+        </span>
       </div>
       {tab === "dashboard" && <Dashboard model={dash} onOpen={() => {}} onResume={() => {}} onPause={() => {}} onStop={() => {}} />}
       {tab === "overview" && <Overview model={overview} />}
@@ -141,6 +170,30 @@ export function PagesDemo() {
       {tab === "finding" && <FindingDetail model={finding} onReplay={() => {}} onJump={() => {}} />}
       {tab === "approval" && <ApprovalCenter items={approvals} onApprove={() => {}} onDeny={() => {}} onDenyAndCancel={() => {}} />}
       {tab === "coverage" && <CoverageMatrix model={coverage} onDrillDown={() => {}} />}
+      {tab === "report" && <ReportCenter model={report} onExport={() => {}} />}
+      {tab === "recovery" && (
+        <div style={{ display: "grid", gap: "var(--sp-3)" }}>
+          <RecoveryPreview model={recovery} onResume={() => {}} onCancel={() => {}} />
+          <div style={{ display: "flex", gap: "var(--sp-2)" }}>
+            <CommandButton
+              label="暂停 Run"
+              deps={{
+                submit: async () => ({ operationId: "op-1", terminal: false }),
+                poll: async () => ({ state: "APPLIED", terminal: true, resultRef: "run-1" }),
+              }}
+            />
+            <CommandButton
+              label="停止 Run"
+              variant="danger"
+              confirm={{ title: "停止 Run？", body: "停止只影响未来动作，不篡改已执行事实。", danger: true }}
+              deps={{
+                submit: async () => ({ operationId: "op-2", terminal: true, state: "APPLIED" }),
+                poll: async () => ({ state: "APPLIED", terminal: true }),
+              }}
+            />
+          </div>
+        </div>
+      )}
       <Drawer open={session} onClose={() => setSession(false)} title="Agent Session">
         <AgentSessionPanel
           model={{

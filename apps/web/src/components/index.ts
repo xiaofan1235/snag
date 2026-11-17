@@ -21,4 +21,5 @@ export { Drawer } from "./Drawer";
 export type { DrawerProps } from "./Drawer";
 export { ToastProvider, useToast } from "./Toast";
 export type { ToastItem, ToastTone } from "./Toast";
+export { ConnectionStatus } from "./ConnectionStatus";
 export { cx } from "./cx";
