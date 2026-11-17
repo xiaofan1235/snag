@@ -18,7 +18,12 @@ func checkIdentity(p Policy, in PolicyInput) (Decision, bool) {
 	if len(p.Identities.Allowed) > 0 && !contains(p.Identities.Allowed, in.IdentityID) {
 		return deny("identity_not_allowed", "身份不在授权白名单内"), false
 	}
-	if len(p.Identities.AllowedTenants) > 0 && in.Tenant != "" && !contains(p.Identities.AllowedTenants, in.Tenant) {
+	// 租户边界 fail-closed（Q-19）：策略配了 allowed_tenants 即表示租户是硬边界——
+	// 此时空租户无法核验，一律拒（去掉旧版 in.Tenant!="" 的 fail-open 逃生门）。
+	if len(p.Identities.AllowedTenants) > 0 && !contains(p.Identities.AllowedTenants, in.Tenant) {
+		if in.Tenant == "" {
+			return deny("tenant_required", "策略限定了 allowed_tenants，但请求缺租户：fail-closed 拒绝"), false
+		}
 		return deny("tenant_not_allowed", "租户不在授权白名单内"), false
 	}
 	return allow(), true

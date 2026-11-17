@@ -67,6 +67,7 @@ func TestDenyCases(t *testing.T) {
 		{"越权身份", func(_ *policy.Policy, in *policy.PolicyInput) { in.IdentityID = "idn-x" }, "identity_not_allowed", policy.EffectDeny},
 		{"空身份", func(_ *policy.Policy, in *policy.PolicyInput) { in.IdentityID = "" }, "identity_required", policy.EffectDeny},
 		{"越权租户", func(_ *policy.Policy, in *policy.PolicyInput) { in.Tenant = "tenant-evil" }, "tenant_not_allowed", policy.EffectDeny},
+		{"空租户fail-closed(Q-19)", func(_ *policy.Policy, in *policy.PolicyInput) { in.Tenant = "" }, "tenant_required", policy.EffectDeny},
 		{"出界host", func(_ *policy.Policy, in *policy.PolicyInput) { in.CanonicalURL = "https://evil.test/x" }, "scope_violation", policy.EffectDeny},
 		{"授权过期", func(_ *policy.Policy, in *policy.PolicyInput) { in.Now = time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC) }, "auth_window_expired", policy.EffectDeny},
 		{"授权未生效", func(_ *policy.Policy, in *policy.PolicyInput) { in.Now = time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC) }, "auth_not_yet_valid", policy.EffectDeny},
