@@ -1,0 +1,21 @@
+// Run 工作台页面（UI 文档 §16.4–16.19）统一出口。
+export { StrategyPage } from "./StrategyPage";
+export type { StrategyPageProps, StrategyModel, StrategyEpoch, PlanPatchOp, CompilerResult } from "./StrategyPage";
+export { JobsPage } from "./JobsPage";
+export type { JobsPageProps, JobsModel, JobRow } from "./JobsPage";
+export { HypothesesPage } from "./HypothesesPage";
+export type { HypothesesModel, Hypothesis, HypColumn } from "./HypothesesPage";
+export { SurfacePage } from "./SurfacePage";
+export type { SurfacePageProps, SurfaceModel, Endpoint, Discovery } from "./SurfacePage";
+export { TrafficPage } from "./TrafficPage";
+export type { TrafficPageProps, TrafficModel, Exchange } from "./TrafficPage";
+export { EvidencePage } from "./EvidencePage";
+export type { EvidencePageProps, EvidenceModel, EvidenceRow } from "./EvidencePage";
+export { BrowserPage } from "./BrowserPage";
+export type { BrowserModel, BrowserSession } from "./BrowserPage";
+export { ToolsPage } from "./ToolsPage";
+export type { ToolsModel, ActionOutput, ToolCall, ToolError } from "./ToolsPage";
+export { FilesPage } from "./FilesPage";
+export type { FilesModel, ArtifactFile, ResourceItem } from "./FilesPage";
+export { TimelinePage } from "./TimelinePage";
+export type { TimelineModel, TimelineEntry, AuditEntry } from "./TimelinePage";

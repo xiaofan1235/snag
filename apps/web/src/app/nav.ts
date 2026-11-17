@@ -1,5 +1,6 @@
 // nav.ts —— 界面地图（UI 文档 D4）。全局左导航 + Run 工作台子导航。
-// 未实现页走只读空态占位（§16.34），不以假数据冒充完成。
+// 全部页面已实现为完整 UI（§16.4–16.29），当前以预览/mock 数据驱动，真实数据待 daemon 接线。
+// implemented 标志保留：false 表示该页仍为只读空态占位（§16.34）。目前全部为 true。
 
 export interface NavItem {
   to: string;
@@ -15,9 +16,9 @@ export const GLOBAL_NAV: NavItem[] = [
   { to: "/runs", label: "Runs", icon: "▤", implemented: true },
   { to: "/runs/new", label: "新建 Run", icon: "＋", implemented: true },
   { to: "/inbox", label: "Inbox", icon: "✉", implemented: true },
-  { to: "/resources", label: "Resources", icon: "▦", implemented: false },
-  { to: "/operations", label: "Operations", icon: "⚙", implemented: false },
-  { to: "/settings", label: "Settings", icon: "⚑", implemented: false },
+  { to: "/resources", label: "Resources", icon: "▦", implemented: true },
+  { to: "/operations", label: "Operations", icon: "⚙", implemented: true },
+  { to: "/settings", label: "Settings", icon: "⚑", implemented: true },
 ];
 
 // Run 工作台子导航（D4，进入某 Run 后）。runId 替换 :id。
@@ -28,16 +29,19 @@ export interface RunNavItem extends NavItem {
 export const RUN_NAV: RunNavItem[] = [
   { seg: "overview", to: "", label: "Overview", icon: "◉", implemented: true },
   { seg: "activity", to: "", label: "Activity", icon: "≡", implemented: true },
-  { seg: "strategy", to: "", label: "Strategy", icon: "✦", implemented: false },
-  { seg: "jobs", to: "", label: "Agent/Jobs", icon: "⬡", implemented: false },
-  { seg: "surface", to: "", label: "Surface", icon: "◈", implemented: false },
-  { seg: "hypotheses", to: "", label: "Hypotheses", icon: "☰", implemented: false },
+  { seg: "strategy", to: "", label: "Strategy", icon: "✦", implemented: true },
+  { seg: "jobs", to: "", label: "Agent/Jobs", icon: "⬡", implemented: true },
+  { seg: "surface", to: "", label: "Surface", icon: "◈", implemented: true },
+  { seg: "hypotheses", to: "", label: "Hypotheses", icon: "☰", implemented: true },
   { seg: "findings", to: "", label: "Findings", icon: "⚑", implemented: true },
-  { seg: "traffic", to: "", label: "Traffic", icon: "⇅", implemented: false },
-  { seg: "evidence", to: "", label: "Evidence", icon: "▣", implemented: false },
+  { seg: "traffic", to: "", label: "Traffic", icon: "⇅", implemented: true },
+  { seg: "evidence", to: "", label: "Evidence", icon: "▣", implemented: true },
+  { seg: "browser", to: "", label: "Browser", icon: "◎", implemented: true },
+  { seg: "tools", to: "", label: "Tools", icon: "⚒", implemented: true },
+  { seg: "files", to: "", label: "Files", icon: "▤", implemented: true },
   { seg: "coverage", to: "", label: "Coverage", icon: "▦", implemented: true },
   { seg: "report", to: "", label: "Report", icon: "▧", implemented: true },
-  { seg: "timeline", to: "", label: "Timeline", icon: "◷", implemented: false },
+  { seg: "timeline", to: "", label: "Timeline", icon: "◷", implemented: true },
 ];
 
 export function runNavTo(runId: string, seg: string): string {

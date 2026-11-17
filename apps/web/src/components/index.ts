@@ -22,4 +22,6 @@ export type { DrawerProps } from "./Drawer";
 export { ToastProvider, useToast } from "./Toast";
 export type { ToastItem, ToastTone } from "./Toast";
 export { ConnectionStatus } from "./ConnectionStatus";
+export { Tabs } from "./Tabs";
+export type { TabsProps, TabItem } from "./Tabs";
 export { cx } from "./cx";

@@ -324,6 +324,168 @@ textarea.sn-input {
   );
 }
 
+/* ===== Tabs（D2.9，下划线式） ===== */
+.sn-tablist {
+  display: flex;
+  gap: var(--sp-1);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-wrap: wrap;
+}
+.sn-tablist[data-variant="segmented"] {
+  border-bottom: none;
+  background: var(--bg-sunken);
+  padding: 2px;
+  border-radius: var(--radius-sm);
+  width: fit-content;
+}
+.sn-tab {
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+  cursor: pointer;
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+.sn-tab:hover {
+  color: var(--ink-1);
+}
+.sn-tab[data-active="true"] {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+.sn-tablist[data-variant="segmented"] .sn-tab {
+  border-bottom: none;
+  border-radius: calc(var(--radius-sm) - 2px);
+  margin-bottom: 0;
+}
+.sn-tablist[data-variant="segmented"] .sn-tab[data-active="true"] {
+  background: var(--bg-surface);
+  color: var(--ink-1);
+  box-shadow: var(--shadow-1);
+}
+.sn-tab-badge {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent-weak);
+  color: var(--accent);
+  font-size: 10px;
+  display: grid;
+  place-items: center;
+}
+.sn-tabpanel {
+  padding-top: var(--sp-3);
+}
+
+/* ===== Kanban 看板 ===== */
+.sn-kanban {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(200px, 1fr);
+  gap: var(--sp-3);
+  overflow-x: auto;
+  padding-bottom: var(--sp-2);
+}
+.sn-kanban-col {
+  background: var(--bg-sunken);
+  border-radius: var(--radius);
+  padding: var(--sp-2);
+  min-height: 80px;
+}
+.sn-kanban-col-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+  font-weight: 600;
+  padding: var(--sp-1) var(--sp-2);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.sn-kanban-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-2);
+  margin-bottom: var(--sp-2);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+.sn-kanban-card:hover {
+  box-shadow: var(--shadow-1);
+}
+
+/* ===== 三栏工作台（Traffic/Browser） ===== */
+.sn-three-col {
+  display: grid;
+  grid-template-columns: 260px 1fr 260px;
+  gap: var(--sp-3);
+  min-height: 0;
+}
+@media (max-width: 980px) {
+  .sn-three-col {
+    grid-template-columns: 1fr;
+  }
+}
+.sn-col-scroll {
+  max-height: 520px;
+  overflow: auto;
+}
+
+/* ===== 定义列表 / 键值 ===== */
+.sn-kv {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--sp-1) var(--sp-3);
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+.sn-kv dt {
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+}
+.sn-kv dd {
+  margin: 0;
+  word-break: break-all;
+}
+
+/* ===== 终端（ANSI 只读） ===== */
+.sn-terminal {
+  background: #16140f;
+  color: #d9d2c5;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  padding: var(--sp-3);
+  border-radius: var(--radius-sm);
+  max-height: 360px;
+  overflow: auto;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+/* ===== 文件树 ===== */
+.sn-tree-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 2px var(--sp-2);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.sn-tree-row:hover {
+  background: var(--bg-sunken);
+}
+
 /* ===== Card（D2.7） ===== */
 .sn-card {
   background: var(--bg-surface);

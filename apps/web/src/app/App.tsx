@@ -4,7 +4,7 @@
 import { AppShell } from "./AppShell";
 import { usePath } from "./router";
 import { matchRoute } from "./router";
-import { DashboardPage, RunsPage, NewRunPage, InboxPage, PlaceholderPage, PageHead } from "./pages";
+import { DashboardPage, RunsPage, NewRunPage, InboxPage, PlaceholderPage, PageHead, ResourcesGlobalPage, OperationsGlobalPage, SettingsGlobalPage } from "./pages";
 import { RunWorkbench } from "./RunWorkbench";
 import { Gallery } from "./Gallery";
 
@@ -17,9 +17,9 @@ function resolve(path: string): React.ReactNode {
   const runOnly = matchRoute("/runs/:id", path);
   if (runOnly) return <RunWorkbench runId={runOnly.id} seg="overview" />;
   if (matchRoute("/inbox", path)) return <InboxPage />;
-  if (matchRoute("/resources", path)) return <PlaceholderPage title="Resources（Knowledge / Skills / Tools）" />;
-  if (matchRoute("/operations", path)) return <PlaceholderPage title="Operations（Providers / Egress / Sandboxes / Budgets / Audit）" />;
-  if (matchRoute("/settings", path)) return <PlaceholderPage title="Settings（通用 / 安全 / 数据 / API）" />;
+  if (matchRoute("/resources", path)) return <ResourcesGlobalPage />;
+  if (matchRoute("/operations", path)) return <OperationsGlobalPage />;
+  if (matchRoute("/settings", path)) return <SettingsGlobalPage />;
   if (matchRoute("/dev/components", path)) {
     return (
       <>

@@ -2,14 +2,16 @@
 // 未实现页走只读空态（§16.34），不以假数据冒充完成。
 
 import { useState } from "react";
-import { Dashboard, RunWizard, ApprovalCenter, type PreflightCheck } from "../features";
+import { Dashboard, RunWizard, type PreflightCheck } from "../features";
+import { ResourcesPage, OperationsPage, SettingsPage, InboxPage as FullInboxPage } from "../features/global";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { StatusBadge } from "../components/StatusBadge";
 import { useToast } from "../components";
 import { useNavigate } from "./router";
 import { runNavTo } from "./nav";
-import { previewDashboard, previewRuns, previewApprovals } from "./mockData";
+import { previewDashboard, previewRuns } from "./mockData";
+import { mkResources, mkOperations, mkSettings, mkInbox } from "./mockGlobal";
 
 // 页头（面包屑 + 标题）。
 export function PageHead({ title, crumbs }: { title: string; crumbs?: React.ReactNode }) {
@@ -99,24 +101,60 @@ export function InboxPage() {
   return (
     <>
       <PageHead title="Inbox 收件箱" />
-      <ApprovalCenter
-        items={previewApprovals}
+      <FullInboxPage
+        model={mkInbox}
+        onRead={(id) => toast.push({ tone: "info", message: `已读 ${id}` })}
+        onSnooze={(id) => toast.push({ tone: "info", message: `Snooze ${id}` })}
         onApprove={(id, rev, dig) => toast.push({ tone: "ok", message: `Approve ${id}（rev ${rev}, digest ${dig.slice(0, 8)}）` })}
         onDeny={(id) => toast.push({ tone: "warn", message: `Deny ${id}` })}
         onDenyAndCancel={(id) => toast.push({ tone: "danger", message: `Deny + 取消关联 Job（${id}）` })}
+        onRecover={(bid, a) => toast.push({ tone: "info", message: `恢复 ${bid}: ${a}` })}
       />
     </>
   );
 }
 
-// 未实现页：只读空态 + 契约占位（§16.34），不用假数据冒充完成。
+export function ResourcesGlobalPage() {
+  return (
+    <>
+      <PageHead title="Resources（Knowledge / Skills / Templates）" />
+      <ResourcesPage model={mkResources} />
+    </>
+  );
+}
+
+export function OperationsGlobalPage() {
+  const toast = useToast();
+  return (
+    <>
+      <PageHead title="Operations" />
+      <OperationsPage
+        model={mkOperations}
+        onCheck={(id) => toast.push({ tone: "info", message: `连接检查 ${id}` })}
+        onRotate={(id) => toast.push({ tone: "warn", message: `Rotate 出口 ${id}` })}
+      />
+    </>
+  );
+}
+
+export function SettingsGlobalPage() {
+  const toast = useToast();
+  return (
+    <>
+      <PageHead title="Settings / Preflight / Diagnostics" />
+      <SettingsPage model={mkSettings} onRecheck={(item) => toast.push({ tone: "info", message: `Recheck ${item}` })} />
+    </>
+  );
+}
+
+// 兜底空态（仅用于不存在的路径）。
 export function PlaceholderPage({ title, note }: { title: string; note?: string }) {
   return (
     <>
       <PageHead title={title} />
       <div className="app-placeholder">
-        <div style={{ fontSize: "var(--fs-lg)", marginBottom: "var(--sp-2)" }}>此页尚未接线</div>
-        <div style={{ fontSize: "var(--fs-sm)" }}>{note ?? "API 契约已定义，页面随 daemon 接线后填充真实数据；此处不展示假数据（§16.34）。"}</div>
+        <div style={{ fontSize: "var(--fs-lg)", marginBottom: "var(--sp-2)" }}>页面不存在</div>
+        <div style={{ fontSize: "var(--fs-sm)" }}>{note ?? "该路径无对应页面，请从左侧导航进入。"}</div>
       </div>
     </>
   );

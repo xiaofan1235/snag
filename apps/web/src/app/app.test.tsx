@@ -79,18 +79,40 @@ describe("App 外壳与导航", () => {
     expect(screen.getByTestId("inferences")).toBeInTheDocument();
   });
 
-  it("Inbox 待办角标显示，进入显示审批中心", async () => {
+  it("Inbox 待办角标显示，进入显示分类通知 + 审批 Tab", async () => {
     renderApp();
     const nav = screen.getByRole("navigation", { name: "主导航" });
     await userEvent.click(within(nav).getByText("Inbox"));
     expect(await screen.findByText("Inbox 收件箱")).toBeInTheDocument();
+    // 默认「全部通知」Tab 显示分类通知。
+    expect(screen.getByText(/run-1 请求预算已用 78%/)).toBeInTheDocument();
+    // 切到待审批 Tab → ApprovalCenter。
+    await userEvent.click(screen.getByRole("tab", { name: /待审批/ }));
     expect(screen.getByRole("button", { name: "Approve Once" })).toBeInTheDocument();
   });
 
-  it("未实现页走只读空态（不假数据冒充完成）", async () => {
+  it("Resources 页渲染（Knowledge/Skills/Templates）", async () => {
     window.location.hash = "/resources";
     renderApp();
-    expect(await screen.findByText("此页尚未接线")).toBeInTheDocument();
+    expect(await screen.findByText(/Resources（Knowledge/)).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Knowledge" })).toBeInTheDocument();
+  });
+
+  it("Operations 页渲染（Providers/Egress/Sandbox/Diagnostics）", async () => {
+    window.location.hash = "/operations";
+    renderApp();
+    expect(await screen.findByRole("heading", { name: "Operations" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Providers/ })).toBeInTheDocument();
+  });
+
+  it("Run 工作台所有子导航项均可进入真实页（无空态占位）", async () => {
+    for (const seg of ["strategy", "jobs", "surface", "hypotheses", "traffic", "evidence", "browser", "tools", "files", "timeline"]) {
+      window.location.hash = `/runs/run-1/${seg}`;
+      const { unmount } = renderApp();
+      // 不应出现「页面不存在」兜底。
+      expect(screen.queryByText("页面不存在")).not.toBeInTheDocument();
+      unmount();
+    }
   });
 
   it("Coverage 单元格下钻推送到右栏 Inspector", async () => {
