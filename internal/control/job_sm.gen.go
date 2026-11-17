@@ -13,6 +13,7 @@ const (
 	JobEventUnblock             JobEvent = "unblock"
 	JobEventClaim               JobEvent = "claim"
 	JobEventRun                 JobEvent = "run"
+	JobEventLeaseExpired        JobEvent = "lease_expired"
 	JobEventNeedApproval        JobEvent = "need_approval"
 	JobEventApprove             JobEvent = "approve"
 	JobEventDeny                JobEvent = "deny"
@@ -29,7 +30,7 @@ const (
 )
 
 // JobAllEvents 是全部事件（供穷举/属性测试）。
-var JobAllEvents = []JobEvent{JobEventReady, JobEventBlock, JobEventUnblock, JobEventClaim, JobEventRun, JobEventNeedApproval, JobEventApprove, JobEventDeny, JobEventSubmit, JobEventVerify, JobEventDone, JobEventVerifyRetry, JobEventRetry, JobEventReconcile, JobEventReconcileRetry, JobEventReconcileUnresolved, JobEventCancel, JobEventFail}
+var JobAllEvents = []JobEvent{JobEventReady, JobEventBlock, JobEventUnblock, JobEventClaim, JobEventRun, JobEventLeaseExpired, JobEventNeedApproval, JobEventApprove, JobEventDeny, JobEventSubmit, JobEventVerify, JobEventDone, JobEventVerifyRetry, JobEventRetry, JobEventReconcile, JobEventReconcileRetry, JobEventReconcileUnresolved, JobEventCancel, JobEventFail}
 
 // JobAllStates 是全部状态。
 var JobAllStates = []domain.JobState{domain.JobPending, domain.JobBlocked, domain.JobReady, domain.JobClaimed, domain.JobRunning, domain.JobReconciling, domain.JobWaitingApproval, domain.JobSubmitted, domain.JobVerifying, domain.JobDone, domain.JobRetrying, domain.JobCancelled, domain.JobFailed}
@@ -51,6 +52,7 @@ var jobTransitions = map[jobSmKey]domain.JobState{
 	{domain.JobBlocked, JobEventUnblock}:                 domain.JobReady,
 	{domain.JobReady, JobEventClaim}:                     domain.JobClaimed,
 	{domain.JobClaimed, JobEventRun}:                     domain.JobRunning,
+	{domain.JobClaimed, JobEventLeaseExpired}:            domain.JobReady,
 	{domain.JobRunning, JobEventNeedApproval}:            domain.JobWaitingApproval,
 	{domain.JobWaitingApproval, JobEventApprove}:         domain.JobRunning,
 	{domain.JobWaitingApproval, JobEventDeny}:            domain.JobRunning,

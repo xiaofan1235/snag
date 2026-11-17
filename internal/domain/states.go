@@ -183,3 +183,11 @@ type (
 	IdempotencyClass string
 	DataClass        string
 )
+
+// AttemptState 取值——§43.8「实现期按真实数据细化」：Day 09 Claim/Lease/Fencing 实际用到的
+// 子集，随后续天数需要再补（待 §43.5 集中登记）。不是穷举，仅登记已落地的。
+const (
+	AttemptRunning   AttemptState = "RUNNING"   // 活跃尝试：刚被 Claim / 执行中（持当代 fencing_token）
+	AttemptSubmitted AttemptState = "SUBMITTED" // 结果已提交，待验证
+	AttemptExpired   AttemptState = "EXPIRED"   // 租约过期被取代：其 fencing_token 失效，写入一律被拒
+)

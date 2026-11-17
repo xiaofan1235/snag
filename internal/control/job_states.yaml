@@ -44,6 +44,9 @@ transitions:
   # --- 领取与执行 ---
   - { event: claim, from: READY,   to: CLAIMED }  # agent seat 领取（RECONCILING 无此入边 = 冻结新 Claim）
   - { event: run,   from: CLAIMED, to: RUNNING }  # attempt 开始
+  # Day 09：认领后**尚未执行**即租约过期 → 安全重新上架（claimant 消失、无副作用，当代 Attempt 标 EXPIRED、增代重领）。
+  # RUNNING 态租约过期牵涉已派发动作的对账（可能有副作用），语义耦合 Day 12 Reconciler，不在此直连 READY。
+  - { event: lease_expired, from: CLAIMED, to: READY }
 
   # --- 红线审批（动作需审批时挂起 Job） ---
   # 【Q-16 处置】审批**被拒**的出口：deny→RUNNING。理由是架构上被迫、非猜测——

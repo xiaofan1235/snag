@@ -14,6 +14,7 @@ stateDiagram-v2
     BLOCKED --> READY: unblock
     READY --> CLAIMED: claim
     CLAIMED --> RUNNING: run
+    CLAIMED --> READY: lease_expired
     RUNNING --> WAITING_APPROVAL: need_approval
     WAITING_APPROVAL --> RUNNING: approve
     WAITING_APPROVAL --> RUNNING: deny
@@ -55,6 +56,7 @@ stateDiagram-v2
 | BLOCKED | unblock | READY |
 | READY | claim | CLAIMED |
 | CLAIMED | run | RUNNING |
+| CLAIMED | lease_expired | READY |
 | RUNNING | need_approval | WAITING_APPROVAL |
 | WAITING_APPROVAL | approve | RUNNING |
 | WAITING_APPROVAL | deny | RUNNING |
