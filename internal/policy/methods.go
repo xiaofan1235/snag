@@ -1,33 +1,29 @@
 package policy
 
-import (
-	"net/url"
-	"strings"
-)
+import "strings"
 
 // checkScope 校验 URL 是否在授权 Scope 内（host/scheme/port，§9.2）。
-// 接收**已规范化**的 CanonicalURL（规范化本身是 Day 16）；此处做结构匹配，host 大小写不敏感。
+// 走 Day 16 规范化器 Canonicalize（§9.3 全陷阱处理），与 Scope/Proxy 同源解析（Q-20 闭合）；
+// 保留粒度 deny code（scheme/host/port）。规范化失败 → fail-closed。
 func checkScope(p Policy, in PolicyInput) (Decision, bool) {
-	u, err := url.Parse(in.CanonicalURL)
-	if err != nil || u.Host == "" {
-		return deny("scope_url_invalid", "URL 非法或缺 host：fail-closed 拒绝"), false
+	c, err := Canonicalize(in.CanonicalURL)
+	if err != nil {
+		return deny("scope_url_invalid", "URL 规范化失败：fail-closed 拒绝（"+err.Error()+"）"), false
 	}
-	host := strings.ToLower(u.Hostname())
-	scheme := strings.ToLower(u.Scheme)
 
 	// scheme：指定则必须命中；未指定默认允许 http/https。
 	if len(p.Target.Schemes) > 0 {
-		if !contains(p.Target.Schemes, scheme) {
+		if !contains(p.Target.Schemes, c.Scheme) {
 			return deny("scheme_not_allowed", "scheme 不在授权范围"), false
 		}
-	} else if scheme != "http" && scheme != "https" {
+	} else if c.Scheme != "http" && c.Scheme != "https" {
 		return deny("scheme_not_allowed", "仅允许 http/https"), false
 	}
 
-	// host：必须命中某条 Hosts 规则。
+	// host：必须命中某条 Hosts 规则（精确绝不匹配子域，除非 allow_subdomains）。
 	matched := false
 	for _, rule := range p.Target.Hosts {
-		if hostMatches(host, rule, p.Target.AllowSubdomains) {
+		if hostMatches(c.Host, rule, p.Target.AllowSubdomains) {
 			matched = true
 			break
 		}
@@ -36,12 +32,9 @@ func checkScope(p Policy, in PolicyInput) (Decision, bool) {
 		return deny("scope_violation", "host 不在授权 Scope 内"), false
 	}
 
-	// port：指定则必须命中（取显式端口，缺省按 scheme 推默认）。
-	if len(p.Target.Ports) > 0 {
-		port := effectivePort(u, scheme)
-		if !containsInt(p.Target.Ports, port) {
-			return deny("port_not_allowed", "端口不在授权范围"), false
-		}
+	// port：指定则必须命中。
+	if len(p.Target.Ports) > 0 && !containsInt(p.Target.Ports, c.Port) {
+		return deny("port_not_allowed", "端口不在授权范围"), false
 	}
 	return allow(), true
 }
@@ -62,23 +55,6 @@ func hostMatches(host string, rule HostRule, allowSubdomains bool) bool {
 		}
 		return false
 	}
-}
-
-func effectivePort(u *url.URL, scheme string) int {
-	if ps := u.Port(); ps != "" {
-		n := 0
-		for _, c := range ps {
-			if c < '0' || c > '9' {
-				return -1
-			}
-			n = n*10 + int(c-'0')
-		}
-		return n
-	}
-	if scheme == "https" {
-		return 443
-	}
-	return 80
 }
 
 func containsInt(s []int, v int) bool {
