@@ -11,14 +11,32 @@
 
 ## 当前位置
 
-**Day 23 —— Provider 抽象 + 原生 tool-calling 结构化输出 ✅（已提交 `ee51ea5`）** —— **🎉 连续七天批次（Day 17–23）全部完成**
-下一步：**Day 24（dev-plan/day-24.md）**，M3 自主 Agent Runtime 继续。
+**修复轮（Day 16–23 八天批次验收后）✅** —— 处置测试模型 BUG-002 + Q-21/Q-22/Q-23。
+下一步：**连续开发 Day 24–30（七天批次）**，M3 自主 Agent Runtime。
 
-Claude 开发前自检：未解决 bug 表为空；远端无测试模型新推送。
-✅ Day 23 已验证：`go test ./internal/providers/...` 双模 + `-race` 全绿（9 用例）——Mock 按 schema
-返回合法 PlanPatch 一次即过；非法输出触发恰一次修复、修复后合法即过、仍不过 fail-closed；截断不执行工具；
-429 按 Retry-After 退避；安全拒绝不重试、不换 Provider。**M3 开端：模型只提案、且提案一定合 schema。**
-有据偏离：Anthropic 适配器网络关闭无法联调（stdlib net/http 结构完整，Mock 承载测试）。
+本轮处置：
+- **BUG-002（中，已修）**：`toolruntime.go` 的 `syscall.SysProcAttr{Setpgid}` 为 Unix-only，阻断 Windows 构建。
+  按 build tag 拆 `proc_unix.go`/`proc_other.go`，`configureProcGroup` 平台分流。**Windows 交叉编译 + vet 现 exit 0**，Linux 不受影响。
+- **Q-21（低，已修）**：egress 守卫由「默认关（opt-in 隐患）」反转为 **默认开（fail-safe）**；授权内网/本地用例用
+  `WithEgressGuardDisabled()` 显式放行（知情刻意，非忘开隐患）。与 Q-17/Q-19 一致的立即 fail-closed 硬化。
+- **Q-22/Q-23（info，已记）**：接线真空清单落到本文件「集成待接线清单」节，防里程碑推进漏接。
+- 复测：全仓双模 + `-race` 全绿；守卫默认开的回归锁定（无选项即拦私网）。
+
+---
+
+## 集成待接线清单（接线真空，Q-22/Q-23 追踪）
+
+> 逐天开发会先造「组件」，再在后续天「接线」。下表登记**已造好但尚无生产调用方**的组件及其接线归属天，
+> 防止里程碑推进时漏接（测试模型 T-054 Q-22/Q-23 建议）。均为路线图正常状态、**非缺陷**。
+
+| 组件 | 现状 | 接线归属 | 备注 |
+|---|---|---|---|
+| `internal/evidence.BlobStore` | 无生产调用方；DEK 来源/轮换策略无归属 | Day 25+ 执行接线 / 密钥管理 | spec §45 C2「密钥丢失=证据丢失」，DEK 来源与轮换待落到开发天 |
+| `internal/providers`（Anthropic 适配器） | 无生产调用方；APIKey 来源待定 | Day 25 Agent 循环接线 | 网络关闭无法联调，Mock 承载测试（有据偏离） |
+| `audit_chain` 表 | 零写入 | Day 46 审计链 | 哈希链/签名审计待实现 |
+| `internal/api.Server` | 未被 `pentagentd serve` 挂载 | Day 39+ daemon 接线 | 当前 CLI 走进程内；见下条 |
+| `cmd/pentagentd` | reconcile-only 骨架（无 HTTP 监听/无调度循环） | Day 39+ daemon 接线 | CLI 默认连 127.0.0.1:8787，对真实 daemon 暂不可用（生命周期测试走进程内）；占位注释诚实 |
+| egress 守卫操作者配置 | 代码默认已 fail-safe（守卫默认开，Q-21） | Day 39+ daemon 接线 | 把「授权内网模式」暴露为 daemon 配置开关（对应 `WithEgressGuardDisabled`）；DNS 重绑定解析时校验→Day 31 |
 
 ---
 

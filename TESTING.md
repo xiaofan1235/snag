@@ -36,7 +36,7 @@
 
 | Bug 编号 | 发现时间 | 对应 Day | 现象 | 严重度 | 状态 |
 |---|---|---|---|---|---|
-| BUG-002 | 2026-11-17T12:00Z | Day 22 | `internal/execution/toolruntime.go:192` 用 `syscall.SysProcAttr{Setpgid: true}`（Unix-only 字段）——**Windows 构建直接失败**（vet: unknown field Setpgid）。Unix 依赖仅此一行（其余 Signal/WaitDelay 跨平台）。开发环境应为 Linux 故未暴露；测试机为 Windows，本地临时去掉该字段后 21 包全部构建+测试通过（证明无其他平台依赖）。进程组收割语义在 Unix 不受影响，仅测试机本地补丁期间行为略有差异 | 中（阻断 Windows 构建/测试；Linux 生产不受影响） | 待修复：拆 build tag（proc_unix.go 设 Setpgid / proc_windows.go 留空） |
+| BUG-002 | 2026-11-17T12:00Z | Day 22 | `internal/execution/toolruntime.go:192` 用 `syscall.SysProcAttr{Setpgid: true}`（Unix-only 字段）——**Windows 构建直接失败**（vet: unknown field Setpgid）。Unix 依赖仅此一行（其余 Signal/WaitDelay 跨平台）。开发环境应为 Linux 故未暴露；测试机为 Windows，本地临时去掉该字段后 21 包全部构建+测试通过（证明无其他平台依赖）。进程组收割语义在 Unix 不受影响，仅测试机本地补丁期间行为略有差异 | 中（阻断 Windows 构建/测试；Linux 生产不受影响） | **已修复（`0687407`，待复测）**：拆 build tag——proc_unix.go（//go:build unix 设 Setpgid+SIGTERM）/proc_other.go（//go:build !unix 留空），configureProcGroup 分流；GOOS=windows go build/vet ./... 现 exit 0 |
 
 ---
 
@@ -722,6 +722,14 @@
 **开发方回应（Q-20，commit `3fe8686`，待复测）**：这条前瞻非常关键，已在 Day 16 闭合。① checkScope 改走 Day 16 规范化器 Canonicalize（不再自己 url.Parse），PDP 与 Scope 规范化**同源解析**；② 新增一致性不变量测试 TestCanonicalParserConsistency：Canonicalize 输出经 PDP 的 net/url 再解析，host/scheme/port 三元组必不变；③ 幂等性 TestCanonicalizeIdempotent + FuzzScope 的幂等断言兜底。**差分模糊当场抓到两个真绕过**并修复：path 多重编码出 NUL 控制符（String 原始拼接产出不可再解析串→非幂等/走私）、`http://..` 退化点 host（再解析缺 host）。Day 18 Policy Proxy 的验收清单里会落实「Proxy 复用 policy.Canonicalize 做同源解析」，不自建第二套 URL 解析栈——届时请一并复核。
 
 ---
+
+**开发方回应（BUG-002，commit `0687407`，待复测）**：确认属实，是真实的平台可移植性缺陷——`syscall.SysProcAttr{Setpgid}` 为 Unix-only 字段，Linux 开发环境天然编不出这个错，测试机为 Windows 才暴露，独立跨平台构建很有价值。已按你的建议修：build tag 拆 `proc_unix.go`（`//go:build unix`，设 Setpgid + SIGTERM 优雅取消）/`proc_other.go`（`//go:build !unix`，留空，保留 CommandContext 默认 Kill 语义 + WaitDelay 宽限），`toolruntime.go` 改调 `configureProcGroup(cmd)` 平台分流。复验：`GOOS=windows GOARCH=amd64 go build/vet ./...` 现 **exit 0（全仓交叉编译通过）**，Linux 行为不变（进程组收割仅 Unix，缺失不影响超时/看门狗正确性）。
+
+**开发方回应（Q-21，commit `0687407`，待复测）**：确认 opt-in 隐患真实存在（T-053 发现很准）。实事求是地补一点：原「默认关」并非纯疏忽——**授权内网渗透（护网/HVV）的目标本就在私网**，是本框架的合法核心用例，默认关能让内网靶场开箱即用。但你的判断对：生产面向云 SaaS 时应 fail-safe，忘开守卫 + Scope 误配即可打内网/元数据，这个静默失败方向不可接受。已反转：**egress 守卫默认开**，新增 `WithEgressGuardDisabled()` 供授权内网/本地调试显式放行——把放宽变成操作者**知情刻意的选择**，而非忘开的静默隐患。另一关键事实：当前**无生产接线点**可供「记得开」（Proxy 暂无生产调用方，见 Q-22/Q-23），所以「生产路径显式 WithEgressGuard()」此刻无处可加，反转默认是此刻闭合隐患的唯一途径，与 Q-17/Q-19 一致的立即 fail-closed 硬化。回归锁定：`TestProxyEgressGuard` 去掉选项、仅靠默认仍拦私网（`egress_private_ip`）；环回测试显式 `WithEgressGuardDisabled()`。DNS 重绑定解析时校验确属真实网络栈范畴，随 Day 31 验收（已记 Day 31 清单）。操作者侧「授权内网模式」配置开关随 Day 39+ daemon 接线暴露。
+
+**开发方回应（Q-22，无需改码，已记清单）**：同意，均为逐天开发的正常接线真空、**非缺陷**。已按建议把清单落到 `PROGRESS.md` 新增「集成待接线清单」节，逐条登记组件现状 + 接线归属天（BlobStore DEK→Day 25+、providers APIKey→Day 25、audit_chain→Day 46、api.Server/pentagentd→Day 39+），防里程碑推进漏接。T-054「零高危 + 清洁面逐项核对」这轮全仓审计质量很高，无站得住的反驳。
+
+**开发方回应（Q-23，无需改码，已记清单）**：确认属实——pentagentd 当前是 reconcile-only 骨架（无 HTTP 监听/无调度循环），CLI 默认连 127.0.0.1:8787 对真实 daemon 暂不可用，生命周期测试走进程内（API handler 直调）。占位注释诚实，属路线图已知状态。已记入「集成待接线清单」，Day 39+ daemon 接线时一并落地 HTTP 监听 + 调度循环 + CLI 真连，届时请复核。
 
 ## 已修复 bug（归档）
 
