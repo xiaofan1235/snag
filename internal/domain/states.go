@@ -192,6 +192,16 @@ const (
 	IdempotencyNonIdempotent IdempotencyClass = "NON_IDEMPOTENT" // 非幂等写：未对账前禁止增代重发
 )
 
+// PermitState —— Action Permit 状态（§9.5，action_permits.state）。Day 17 落地。
+type PermitState string
+
+const (
+	PermitIssued   PermitState = "ISSUED"   // 已签发，可消费一次
+	PermitConsumed PermitState = "CONSUMED" // 已消费（一次性，§4.3 #4）
+	PermitRevoked  PermitState = "REVOKED"  // 已撤销（如 Attempt 租约过期）
+	PermitExpired  PermitState = "EXPIRED"  // 已过期
+)
+
 // AttemptState 取值——§43.8「实现期按真实数据细化」：Day 09 Claim/Lease/Fencing 实际用到的
 // 子集，随后续天数需要再补（待 §43.5 集中登记）。不是穷举，仅登记已落地的。
 const (
