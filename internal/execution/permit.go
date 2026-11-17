@@ -210,6 +210,86 @@ func (pm *Permits) IssueRequestCapability(ctx context.Context, g RequestCapabili
 	return id, nil
 }
 
+// CapabilityChain 是一个 Request Capability 链上的存活快照（供 Proxy 逐请求回查）。
+type CapabilityChain struct {
+	PermitID       domain.ID
+	RunID          domain.ID
+	PermitState    domain.PermitState
+	AttemptCurrent bool // attempt.generation == job.generation 且 attempt 活跃
+	RunExecutable  bool // run ∈ {RUNNING, EXITING}
+	PolicyCurrent  bool // 无更高 policy_revision
+	MaxSubrequests int
+	ConsumedCount  int
+	Revoked        bool
+}
+
+// ValidateCapabilityLive 读一个 Capability 的整条链存活状态（Permit/Attempt/Run/Policy），
+// 供 Policy Proxy 逐请求独立回查——**不信任 Runner 持有的快照**（§9.5）。只读，不消费。
+func (pm *Permits) ValidateCapabilityLive(ctx context.Context, capID domain.ID) (CapabilityChain, error) {
+	var ch CapabilityChain
+	err := pm.w.Durable(ctx, func(tx *sql.Tx) error {
+		var permitID, attemptID string
+		var revokedAt sql.NullString
+		e := tx.QueryRowContext(ctx,
+			`SELECT permit_id, COALESCE(attempt_id,''), max_subrequests, consumed_count, revoked_at
+			 FROM request_capabilities WHERE id=?`, string(capID)).
+			Scan(&permitID, &attemptID, &ch.MaxSubrequests, &ch.ConsumedCount, &revokedAt)
+		if e == sql.ErrNoRows {
+			return domain.ErrNotFound
+		}
+		if e != nil {
+			return e
+		}
+		ch.PermitID = domain.ID(permitID)
+		ch.Revoked = revokedAt.Valid
+
+		var pState, pAttempt string
+		var policyRev int64
+		e = tx.QueryRowContext(ctx,
+			`SELECT state, COALESCE(attempt_id,''), policy_revision FROM action_permits WHERE id=?`, permitID).
+			Scan(&pState, &pAttempt, &policyRev)
+		if e == sql.ErrNoRows {
+			return domain.ErrNotFound
+		}
+		if e != nil {
+			return e
+		}
+		ch.PermitState = domain.PermitState(pState)
+		if pAttempt == "" {
+			pAttempt = attemptID
+		}
+
+		var attGen, jobGen int64
+		var attState, runID, runState string
+		e = tx.QueryRowContext(ctx,
+			`SELECT a.generation, a.state, j.generation, j.run_id, r.state
+			 FROM attempts a JOIN jobs j ON a.job_id=j.id JOIN runs r ON j.run_id=r.id WHERE a.id=?`, pAttempt).
+			Scan(&attGen, &attState, &jobGen, &runID, &runState)
+		if e == nil {
+			ch.RunID = domain.ID(runID)
+			ch.AttemptCurrent = attGen == jobGen && attState != string(domain.AttemptExpired)
+			ch.RunExecutable = runState == string(domain.RunRunning) || runState == string(domain.RunExiting)
+			var maxRev int64
+			if e2 := tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(revision),0) FROM policy_revisions WHERE run_id=?`, runID).Scan(&maxRev); e2 != nil {
+				return e2
+			}
+			ch.PolicyCurrent = maxRev <= policyRev
+		} else if e != sql.ErrNoRows {
+			return e
+		}
+		return nil
+	})
+	return ch, err
+}
+
+// Live 报告整条链（Permit/Attempt/Run/Policy）是否存活——**不含预算**：子请求预算由
+// ConsumeSubrequest 原子把关（超限返 capability_exhausted），不混进存活判定。
+func (ch CapabilityChain) Live() bool {
+	return !ch.Revoked &&
+		ch.PermitState == domain.PermitConsumed && // Action Permit 已消费=动作已派发
+		ch.AttemptCurrent && ch.RunExecutable && ch.PolicyCurrent
+}
+
 // ConsumeSubrequest 原子消耗一个子请求配额；超 max_subrequests 或已撤销 → ErrConflict（中断）。
 func (pm *Permits) ConsumeSubrequest(ctx context.Context, capID domain.ID) error {
 	return pm.w.Durable(ctx, func(tx *sql.Tx) error {
