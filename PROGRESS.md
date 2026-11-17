@@ -11,13 +11,14 @@
 
 ## 当前位置
 
-**Day 21 —— Receipt + 对账 + OUTCOME_UNKNOWN 闭环 ✅（已提交 `5c13d12`）**
-下一步：**Day 22（dev-plan/day-22.md，安全不变量熔断器 + 工具卡住处理）**（连续开发中）。
+**Day 22 —— 安全不变量熔断器 + 工具卡住(hang)处理 ✅（已提交 `2519a8a`）**
+下一步：**Day 23（dev-plan/day-23.md，Provider 抽象 + 原生 tool-calling 结构化输出，进入 M3）**（连续开发中，七天批次的最后一天）。
 
-Claude 开发前自检：Day 20 无未解决项。
-✅ Day 21 已验证：`go test -tags sqlite_modernc ./internal/execution/...` 全绿——正常动作→RECORDED；
-缺 Receipt/缺 Evidence/缺 Blob 三前置任一不满足均不进 RECORDED；Receipt-only/Evidence-only 孤儿
-→OUTCOME_UNKNOWN 待配对（不自动成功）。**M2 执行面闭环收口：受控动作+完整留证+崩溃一致**。
+Claude 开发前自检：未解决 bug 表为空；远端无测试模型新推送。
+✅ Day 22 已验证：`go test ./internal/network/... ./internal/execution/...` 双模 + `-race` 全绿——
+注入上升的 scope 违例计数→自动拉 Kill Switch→出网一律 `system_degraded`；卡住工具被硬超时/看门狗杀；
+长命令超前台上限转后台、Executor 不被阻塞；真实 `sleep` 进程被 SIGTERM→SIGKILL 收割。
+**「应恒为 0」的安全绊线超阈即停机，工具卡住一律有界收束——安全韧性收口。**
 
 ---
 
@@ -46,7 +47,7 @@ Claude 开发前自检：Day 20 无未解决项。
 | 19 | M2 | Sandbox + Egress + Fake Runner | ✅已完成 | `9825ef1` | 2026-11-17 | internal/sandbox(Attestation分级FULL/PARTIAL/NONE/UNKNOWN+硬化默认§11.1+NONE/UNKNOWN fail-closed禁主动测试)/network/egress.go(代理租约唯一出口禁直连)/runners/fake(经Proxy打MockTarget回Receipt)；全链路无AI跑通;有据偏离:Go接口替gRPC、降级沙箱替容器 |
 | 20 | M2 | Evidence Store（CEBS + 内容寻址 + 加密） | ✅已完成 | `c21e981` | 2026-11-17 | internal/evidence/{blob_store,redaction,service}.go：CEBS(de-chunk+gunzip不转码)+plain_sha256内容寻址+AES-256-GCM(gzip)密文落盘明文不落+血缘三元组+脱敏投影;可独立重算;未知编码fail-closed;有据偏离gzip替zstd |
 | 21 | M2 | Receipt + 对账 + OUTCOME_UNKNOWN 闭环 | ✅已完成 | `5c13d12` | 2026-11-17 | internal/execution/{receipt,outcome_reconciler}.go：RECORDED三前置(回执终结+Exchange齐备+Blob持久化,fail-closed)+RecordAction EXECUTED→RECORDED;三种孤儿对账Receipt-only/Evidence-only→OUTCOME_UNKNOWN不自动成功;Action SM加EXECUTED→unknown边 |
-| 22 | M2 | 安全不变量熔断器 + 工具卡住(hang)处理 | ⬜未开始 |  |  |  |
+| 22 | M2 | 安全不变量熔断器 + 工具卡住(hang)处理 | ✅已完成 | `2519a8a` | 2026-11-17 | internal/network/breaker.go(四类绊线内存计数+阈值→Proxy.RevokeAllTargetEgress Kill Switch,§9.7)+policy_proxy.go(killed atomic+CheckRequest 最先 system_degraded fail-closed)+execution/toolruntime.go(RunBounded 硬超时/RunWatched 看门狗/RunForegroundOrBackground 长命令转后台不阻塞/ExecBounded 真进程 SIGTERM→SIGKILL);注入 scope 违例→自动熔断;双模+race 全绿。有据偏离:Go 无法强杀无视 ctx 的 goroutine→进程内函数到点诚实标记超时,真杀走 ExecBounded |
 | 23 | M3 | Provider 抽象 + 原生 tool-calling 结构化输出 | ⬜未开始 |  |  |  |
 | 24 | M3 | 模型预算账本（RESERVED→SETTLED） | ⬜未开始 |  |  |  |
 | 25 | M3 | Executor Loop（StepContext 冻结 + 效果幂等） | ⬜未开始 |  |  |  |
@@ -110,3 +111,4 @@ Claude 开发前自检：Day 20 无未解决项。
 - **2026-11-17** — Day 19 完成（提交 `9825ef1`），**执行面闭环：分级沙箱 + Egress + Fake Runner**。新增 internal/sandbox/、network/egress.go、runners/。**有据偏离**：Runner↔Core 无法引入 gRPC/protobuf（网络关）→ 进程内 Go 接口（gRPC 形状）；无法拉真容器 → 降级进程沙箱 + attestation 分级门禁骨架。**sandbox**：Attestation FULL/PARTIAL/NONE/UNKNOWN；HardenedDefault（§11.1 全硬化）；AllowActiveTesting 对 NONE/UNKNOWN fail-closed（§31 P5x）。**egress**：EgressLease→只经代理出网的 Client（禁直连 §10.1）。**runners/fake**：attestation 门禁→Egress 代理客户端→带 X-Snag-Capability 经 Proxy 打目标→Receipt。验证：全链路（无 AI 只读动作→Proxy→Mock Target→Receipt+留证）、NONE 门禁拦截、过期租约拦截。全仓双模（18 包），基线仍 1.23。下一步：Day 20。
 - **2026-11-17** — Day 20 完成（提交 `c21e981`），**防谎报的事实源：Evidence Store**。新增 internal/evidence/。**CEBS（§47.1）**：AssembleCEBS de-chunk→按 Content-Encoding 解压(gunzip)→不转码；未知编码/br fail-closed 不猜测；plain_sha256=SHA-256(CEBS) 内容寻址。**BlobStore**：路径=f(plain_sha256) 分片，内容=AES-256-GCM(gzip(CEBS)) 密文落盘明文不落（§1.5），内容寻址去重（只追加不可改 §4.3 #5），Get 解密+解压+校验哈希。**Service.Store**：CEBS→密文→脱敏投影→evidence 元数据（血缘三元组 identity/policy_revision/proxy_lease §4.1）。Redact 先替字面秘密再套通用模式。**有据偏离**：zstd 无法引入（网络关）→ stdlib gzip（不影响 plain_sha256）。验证：gzip→CEBS 重算、密文落盘明文不落、脱敏无秘密、血缘齐全、去重、未知编码 fail-closed。全仓双模（19 包），基线仍 1.23。下一步：Day 21。
 - **2026-11-17** — Day 21 完成（提交 `5c13d12`），**M2 收口：Receipt + 对账 + OUTCOME_UNKNOWN 闭环**。新增 internal/execution/{receipt,outcome_reconciler}.go，Action SM unknown 补 EXECUTED 来源。**receipt**：Write 终结 execution_receipt（durable）；RECORDED 三前置（§5.3 全满足才进）=①Receipt 终结②Exchange 齐备（有 evidence）③Blob 持久化（plain_sha256+blob_path 无缺），RecordAction fail-closed 不自动成功。**outcome_reconciler**：三种孤儿——Receipt-only（EXECUTED 缺证据）/Evidence-only（DISPATCHED 缺回执）→OUTCOME_UNKNOWN 待配对；齐备留给 RecordAction。验证：正常→RECORDED、缺三前置任一均不进、单边孤儿→OUTCOME_UNKNOWN。全仓双模（19 包），基线仍 1.23。M2 执行面「受控动作+完整留证+崩溃一致」闭环成立。下一步：Day 22。
+- **2026-11-17** — Day 22 完成（提交 `2519a8a`），**安全韧性收口：安全不变量熔断器 + 工具卡住处理**（§4.2 v2.4 / §9.7 Kill Switch / §51 / §53）。新增 internal/network/breaker.go、internal/execution/toolruntime.go，Proxy 加 Kill Switch。**熔断器**：对「应恒为 0」的四类安全绊线（scope_violation/egress_bypass/permit_replay/fencing_failure）做**内存计数**（§3 明定「内存计数 + 阈值」，**不建迁移**——进程内 tripwire 无需持久化；Kill Switch 状态由 Proxy 进程内 atomic 持有，重启后缓存重建前本就 fail-closed，无持久化缺口）；**按类独立**累计达阈即熔断，onTrip **恰调一次**（幂等 `!tripped && count>=threshold` 守卫），记诊断快照（§4.2）；回调在锁外调用避免与 breaker 再入死锁。NewProxyBreaker 便捷构造超阈自动 revoke。**Kill Switch 落在 Proxy**（egress 执法点，§9.7）：RevokeAllTargetEgress = killed(atomic) 置位 + bump epoch 使在途缓存全失效（幂等）；CheckRequest **最先**查 killed → `system_degraded` fail-closed（排在 ready 门之前，降级态下连重建中的请求也拦）。**工具卡住处理**（§51/§53，四条铁律：硬超时/看门狗/长命令转后台/诚实上报）：RunBounded（硬超时，到点放弃等待并如实标记 TimedOut+Killed）；RunWatched（看门狗心跳，watchdog 间隔内无进展→NoProgress 收束，ticker 取 watchdog/2 保证 ~watchdog 时杀）；RunForegroundOrBackground（前台超 fgLimit 默认 5s→转后台 Job 默认 30min 封顶，立即非阻塞返回句柄，Executor 不被阻塞，借鉴 dsh §53）；ExecBounded（真实外部进程 exec.CommandContext + cmd.Cancel=SIGTERM + WaitDelay 宽限→SIGKILL 真杀，Setpgid 整组收割，非 TTY 不挂起）。**有据偏离/语言约束**：Go 无法强杀无视 ctx 的 goroutine——进程内函数（RunBounded/RunWatched）要求尊重 ctx，到点**放弃等待并诚实标记超时**（不假装已杀死实际仍在运行的 goroutine）；真正需要强杀的外部命令走 ExecBounded 真杀进程。这是语言约束下的诚实设计，已写进文件头注与提交信息。验证：go test ./internal/network/... ./internal/execution/... 双模（默认 + sqlite_modernc）+ -race 全绿——DoD 全达：注入上升 scope 违例计数→第 3 次达阈自动 Kill Switch→出网 system_degraded；卡住工具被硬超时杀（TimedOut+Killed）；无心跳工具被看门狗 <1s 杀（NoProgress）；长命令 150ms>前台 50ms→转后台不阻塞、后台如实投递 late；真实 sleep 5 被 100ms 硬超时 SIGTERM→SIGKILL 收割。gofmt 干净，全仓双模无回归（Proxy killed 检查不影响既有用例）。**至此 M2 安全核心九天（14-22）全部完成**：Action SM→PDP→Scope 规范化→两层 Permit→Policy Proxy→沙箱/Egress→Evidence→Receipt 对账→熔断/卡住。下一步：Day 23（Provider 抽象 + 原生 tool-calling，进入 M3，七天批次最后一天）。
