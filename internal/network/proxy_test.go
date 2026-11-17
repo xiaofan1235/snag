@@ -112,7 +112,7 @@ func TestProxyCompliantAndCapture(t *testing.T) {
 	cache.Rebuild()
 	ev := network.NewMemEvidence()
 	resolver := func(context.Context, domain.ID) (policy.Policy, error) { return policyFor(hostOf(mock.URL)), nil }
-	px := network.NewProxy(pm, resolver, ev, cache)
+	px := network.NewProxy(pm, resolver, ev, cache, network.WithEgressGuardDisabled()) // mock 跑在环回，显式放行
 
 	// CheckRequest 放行。
 	if res := px.CheckRequest(ctx, capID, mock.URL+"/p", "GET", true, time.Now()); !res.Allowed {
@@ -160,7 +160,7 @@ func TestProxyCapabilityPerRequestConsume(t *testing.T) {
 	cache := network.NewEpochCache()
 	cache.Rebuild()
 	resolver := func(context.Context, domain.ID) (policy.Policy, error) { return policyFor("127.0.0.1"), nil }
-	px := network.NewProxy(pm, resolver, network.NewMemEvidence(), cache)
+	px := network.NewProxy(pm, resolver, network.NewMemEvidence(), cache, network.WithEgressGuardDisabled()) // 环回目标，显式放行
 
 	for i := 0; i < 2; i++ {
 		if res := px.CheckRequest(ctx, capID, "http://127.0.0.1/x", "GET", true, time.Now()); !res.Allowed {
@@ -197,9 +197,9 @@ func TestProxyEgressGuard(t *testing.T) {
 	pm := execution.NewPermits(w)
 	cache := network.NewEpochCache()
 	cache.Rebuild()
-	// 策略放行私网，但开启 egress 守卫 → 仍拒。
+	// 策略放行私网，但 egress 守卫（现默认开）→ 仍拒。
 	resolver := func(context.Context, domain.ID) (policy.Policy, error) { return policyFor("10.0.0.1"), nil }
-	px := network.NewProxy(pm, resolver, network.NewMemEvidence(), cache, network.WithEgressGuard())
+	px := network.NewProxy(pm, resolver, network.NewMemEvidence(), cache)
 
 	if res := px.CheckRequest(ctx, capID, "http://10.0.0.1/x", "GET", true, time.Now()); res.Allowed || res.Code != "egress_private_ip" {
 		t.Fatalf("egress 守卫应拦私网，得 %+v", res)

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"os/exec"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -188,9 +187,9 @@ func ExecBounded(parent context.Context, hard, grace time.Duration, name string,
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, name, args...)
-	// 独立进程组，便于整组收割；SIGTERM 后宽限，仍不退则 SIGKILL（真杀进程，不留孤儿）。
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.Cancel = func() error { return cmd.Process.Signal(syscall.SIGTERM) }
+	// 进程组 + SIGTERM 优雅取消按平台拆分（BUG-002：Setpgid 为 Unix-only，见 proc_unix.go/proc_other.go）；
+	// SIGTERM 后宽限，仍不退则 SIGKILL（真杀进程，不留孤儿）。
+	configureProcGroup(cmd)
 	cmd.WaitDelay = grace
 
 	out, err := cmd.Output()

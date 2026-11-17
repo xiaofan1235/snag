@@ -103,7 +103,7 @@ func TestFakeRunnerFullChain(t *testing.T) {
 			Methods:       policy.Methods{Default: []string{"GET", "HEAD"}},
 		}, nil
 	}
-	proxy := network.NewProxy(pm, resolver, ev, cache)
+	proxy := network.NewProxy(pm, resolver, ev, cache, network.WithEgressGuardDisabled()) // mocktarget 跑在环回，显式放行
 	proxySrv := httptest.NewServer(proxy)
 	defer proxySrv.Close()
 

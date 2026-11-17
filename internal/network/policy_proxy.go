@@ -79,7 +79,7 @@ type Proxy struct {
 	evidence    EvidenceSink
 	cache       *EpochCache
 	client      *http.Client
-	egressGuard bool        // 开启则私网/元数据地址一律拒出网（云部署防 SSRF/DNS 重绑定，默认关）
+	egressGuard bool        // 私网/元数据地址一律拒出网（云部署防 SSRF/元数据，默认**开**；Q-21 fail-safe）
 	killed      atomic.Bool // Kill Switch：熔断后 revoke_all_target_egress，逐请求一律 fail-closed（§9.7）
 }
 
@@ -96,17 +96,22 @@ func (p *Proxy) Degraded() bool { return p.killed.Load() }
 // Option 配置 Proxy。
 type Option func(*Proxy)
 
-// WithEgressGuard 开启私网 egress 守卫：即便在 Scope 内，私有/环回/元数据地址也拒出网。
-// 默认关——授权内网测试的目标可能本就是私网，由 Scope 把关；开启适合云部署的纵深防御。
-func WithEgressGuard() Option { return func(p *Proxy) { p.egressGuard = true } }
+// WithEgressGuardDisabled 关闭私网 egress 守卫（Q-21：守卫现**默认开**，此选项用于显式放行）。
+// 仅用于「授权内网渗透（护网/HVV 等目标本就在私网）」或本地调试（mocktarget 跑在环回）——这是
+// 操作者知情的刻意放宽，而非忘记开启守卫的静默隐患。云 SaaS 部署切勿使用本选项。
+// 注：守卫只查字面 IP，域名解析到私网的 DNS 重绑定在解析时校验，记入 Day 31 真实网络栈。
+func WithEgressGuardDisabled() Option { return func(p *Proxy) { p.egressGuard = false } }
 
 // NewProxy 构造 Proxy。client 关闭自动重定向（重定向由逐请求 Scope 回查把关）。
+// egress 守卫**默认开**（fail-safe，防 SSRF/云元数据 169.254.169.254/CGNAT）；授权内网/本地用例
+// 用 WithEgressGuardDisabled 显式放行（Q-21）。
 func NewProxy(permits *execution.Permits, resolver PolicyResolver, evidence EvidenceSink, cache *EpochCache, opts ...Option) *Proxy {
 	p := &Proxy{
-		permits:  permits,
-		policies: resolver,
-		evidence: evidence,
-		cache:    cache,
+		permits:     permits,
+		policies:    resolver,
+		evidence:    evidence,
+		cache:       cache,
+		egressGuard: true, // Q-21：默认 fail-safe，私网/元数据默认拒出网
 		client: &http.Client{
 			Timeout:       30 * time.Second,
 			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
