@@ -36,7 +36,7 @@
 
 | Bug 编号 | 发现时间 | 对应 Day | 现象 | 严重度 | 状态 |
 |---|---|---|---|---|---|
-| —— | —— | —— | *(暂无)* | —— | —— |
+| BUG-002 | 2026-11-17T12:00Z | Day 22 | `internal/execution/toolruntime.go:192` 用 `syscall.SysProcAttr{Setpgid: true}`（Unix-only 字段）——**Windows 构建直接失败**（vet: unknown field Setpgid）。Unix 依赖仅此一行（其余 Signal/WaitDelay 跨平台）。开发环境应为 Linux 故未暴露；测试机为 Windows，本地临时去掉该字段后 21 包全部构建+测试通过（证明无其他平台依赖）。进程组收割语义在 Unix 不受影响，仅测试机本地补丁期间行为略有差异 | 中（阻断 Windows 构建/测试；Linux 生产不受影响） | 待修复：拆 build tag（proc_unix.go 设 Setpgid / proc_windows.go 留空） |
 
 ---
 
@@ -567,6 +567,37 @@
 - 关联 bug: 无
 - 备注: 实现质量高：通配符点边界无子串匹配缺陷、userinfo 由 Hostname() 剥离、全链 fail-closed（坏日期/坏 URL/未登记类/缺方法均拒）、元操作一律拒、判定确定性可回放。Q-19/Q-20 为前瞻性集成项非当前缺陷
 
+### T-050  [PASS]（本地补丁后）
+- 时间戳: 2026-11-17T12:10:00Z
+- 对应: Day 16-23 连续八天批次（提交 46435d2..ee51ea5，手动触发） / M2 收口 + M3 开端
+- 测试项: 批次全量套件（21 包）——因 BUG-002（Setpgid Windows 构建阻断）本地临时移除该字段后执行，测毕已还原（git checkout），补丁未入库
+- 命令: `go build/vet/test ./... -count=1`
+- 预期: 全绿
+- 实际: BUILD_OK/VET_OK；21 包全绿——新增 evidence/execution(扩展)/network/providers/sandbox/runners.fake 全过。各包测试名与安全语义 1:1 映射（断路器触闸撤出口、Proxy 六向拦截含能力逐请求消费与撤销后拒发、Blob 篡改检测、证明门控、Provider 安全拒答不重试不换路）
+- 结果: PASS
+- 关联 bug: BUG-002（构建阻断，本地补丁绕过）
+- 备注: Permit 层测试矩阵完整（并发一次性消费/重放/旧代/过期/Run 不可执行/策略翻版/撤销/能力限额——§4.3 #4 全语义），本机套件实跑通过即采信
+
+### T-051  [PASS]
+- 时间戳: 2026-11-17T12:05:00Z
+- 对应: Q-19 修复复测（46435d2，租户 fail-closed） / M2
+- 测试项: AllowedTenants 设置时空租户应拒（专用码 tenant_required）；白名单租户放行
+- 命令: 临时探针（zz_t_test.go，已删）`go test -run TestRetestQ19 -v`
+- 实际: 双向断言通过
+- 结果: PASS——Q-19 关闭
+- 关联 bug: 无
+
+### T-052  [PASS]
+- 时间戳: 2026-11-17T12:18:00Z
+- 对应: Q-20 验收（Day 16 Scope 规范化器 + Day 18 Policy Proxy 同栈一致性） / M2
+- 测试项: ①幂等性电池：18 种恶意变形（userinfo 欺骗/末尾点/默认端口/编码 path/IPv6/IPv4 四种异常形式/fragment/首尾空白）全部满足 Canonicalize(String(c))==c；②等价变形 PDP 判定一致（授权内三种写法全 ALLOW）；③IPv4 异常形式→127.0.0.1→scope 拒绝；④Proxy 源码核验：复用 policy.Canonicalize/CheckNetwork 同栈（policy_proxy.go L153-157）；⑤scope.go 全文审读
+- 命令: 临时探针（zz_q20_test.go，已删）`go test -run TestQ20 -v` + 源码审读
+- 实际: 全部通过。规范化器处理 §9.3 全清单（大小写/末尾点/默认端口/userinfo/多重编码/inet_aton 四式/IPv6 压缩/控制符/退化点全 fail-closed），非 ASCII host 无 IDN 库时显式拒绝并注明取舍——设计成熟
+- 结果: PASS——Q-20 关闭
+- 关联 bug: 无
+
+**八天批次验收结论：Day 16-23 全部通过。M2（Day 14-22）里程碑完成：Action 状态机、PDP、Scope 规范化器、两层 Permit、Policy Proxy、沙箱/Egress、Evidence CEBS、Receipt 对账闭环、安全熔断器。遗留：BUG-002（Windows 构建，build tag 拆分待修）。**
+
 ---
 
 ## 代码质量审计（2026-11-16 首轮，随测试执行，Owner 指令新增）
@@ -594,7 +625,7 @@
 | Q-17 | info | internal/scheduler/claim.go guardFencingTx | fencing 守卫只校验「令牌=当代」，不查 Job 状态：CANCELLED/FAILED 等终态 Job 的当代令牌仍能通过 CheckFencing/WriteAttemptResult/Renew（T-036 P4 实测确认）。当前无实际危害（终态 Job 无后续写路径）；Day 17 Permit 发放、Day 18 Proxy 校验若复用 guardFencingTx 判「可写」，会放行已终态 Job 的请求 | Day 17 设计 Permit 校验时叠加 Job 存活性（state 非终态）检查；或在 guardFencingTx 加可选参数。届时随 Day 17 验收。**复测（T-037）：已修复关闭（提前处置）**——9c2b285 guardFencingTx fail-closed 叠加存活性：终态 Job 令牌匹配也拒写，三路（Check/Write/Renew）实测全拒 |
 | Q-18 | info | internal/outbox（设计语义，非缺陷） | outbox 为**至少一次**投递：bus.Publish 成功但 markPublished 前崩溃 → 重启后重投（WHERE published=0 守卫决定）；多实例 Publisher 也会重复投递。代码注释已声明该语义 | Day 40 SSE 接入时消费者按 event id / sequence 去重（SSE 客户端 event id 已有全局序可用）；单实例部署假设写入运维约定。届时随 Day 40 验收 |
 | Q-19 | 低 | internal/policy/identities.go checkIdentity | **空租户 fail-open**（T-049 ⑩ 实测）：策略设置 `identities.allowed_tenants=[tenant-a]` 时，`Tenant=""` 的请求放行——租户限制只对携带租户的请求生效。若租户是硬边界（跨租户对象=IDOR 高危场景），无租户请求应拒或显式区分「不适用」 | Day 16/18 身份→租户接入时收口：PolicyInput.Tenant 由 Identity 注册表填充后此口子自然闭合；建议 PDP 在 AllowedTenants 非空且 Tenant 为空时改判 deny 或标注语义。spec §9.2 租户语义待澄清 |
-| Q-20 | info | internal/policy/methods.go checkScope × 未来 Day 16/18 | **parser differential 前瞻**：PDP 用 Go net/url 解析 CanonicalURL；Day 16 规范化器与 Day 18 Policy Proxy 若用不同 URL 解析栈（或不同规范化规则），可能出现「PDP 判 A 放行、Proxy 按解析 B 转发到 C」的绕过。代码已声明「只接收已规范化 URL」，但一致性未验证 | Day 16 验收时核对：规范化器输出的 CanonicalURL 经 PDP 的 url.Parse 再解析必须幂等（host/scheme/port 三元组不变）；Day 18 Proxy 与 PDP 同源解析。记入两天验收清单 |
+| Q-20 | info | internal/policy/methods.go checkScope × 未来 Day 16/18 | **parser differential 前瞻**：PDP 用 Go net/url 解析 CanonicalURL；Day 16 规范化器与 Day 18 Policy Proxy 若用不同 URL 解析栈（或不同规范化规则），可能出现「PDP 判 A 放行、Proxy 按解析 B 转发到 C」的绕过。代码已声明「只接收已规范化 URL」，但一致性未验证 | Day 16 验收时核对：规范化器输出的 CanonicalURL 经 PDP 的 url.Parse 再解析必须幂等（host/scheme/port 三元组不变）；Day 18 Proxy 与 PDP 同源解析。记入两天验收清单。**复测（T-052）：已验证关闭**——scope.go 兑现承诺：Proxy 复用 policy.Canonicalize/CheckNetwork 同栈；幂等性探针 18 种恶意变形（userinfo/末尾点/默认端口/编码 path/IPv6/IPv4 异常/fragment/空白）全部 Canonicalize∘String 幂等；等价变形 PDP 判定一致；**IPv4 异常形式（0x7f.1/0177.0.0.1/2130706433/127.1）全部规范化为 127.0.0.1 且被 scope 拒绝**（SSRF 绕过堵死） |
 
 **做得好的（保持）**：迁移器版本记录与 DDL 同事务（原子）；建表按依赖序 + Down 严格逆序；Day 02 复合外键设计纯净（无冗余单列 FK）；全部查询参数化；t.TempDir/t.Cleanup 测试卫生；PRAGMA 走 DSN（per-connection，不踩连接池坑）；注释全程带 spec 引用可回溯；BUG-001 教训已固化进 .gitignore 注释。
 
