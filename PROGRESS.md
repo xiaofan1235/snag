@@ -11,11 +11,10 @@
 
 ## 当前位置
 
-**Day 45 —— 浸泡 Soak + 资源泄漏 + Secret Canary ✅（已提交 `5c43ee5`）** —— **长时稳定性是立身之本**。
-下一步：**Day 46（dev-plan/day-46.md，报告证据审计 + 验收清单，收官）**。
-✅ Day 45 已验证：`go build/vet/gofmt`、`-tags sqlite_modernc` soak、`-race` soak、`GOOS=windows build` 全 exit 0。
-tests/soak 浸泡驱动（随机故障注入 + 持续负载，规模可由 `SNAG_SOAK_ITERS`/`SNAG_SOAK_SECONDS` 放大到 12–24h 长跑）。**门槛是不变量断言（任一违反即失败），非跑够时长即过**——§22.6 覆盖：越域/直连全拦、副作用零重复（随机崩溃注入+恢复续提交）、无未完成冒充 COMPLETED、Secret Canary 脱敏后零泄漏、**UNKNOWN 预算预留结算率 100%**（预留→IN_FLIGHT→(SUCCEEDED/UNKNOWN)→SETTLED 随机路径跑完零悬挂）、Core 崩溃后自动恢复、SSE 补发序号无空洞、内存 warm-up 后堆不失控增长（短跑宽门+记录，ITERS≥5 万收紧到 §22.6 的 <10%）。实测 2000 轮堆 -3.6%（无泄漏）、结算 2000/2000。
-**偏离（文档化）**：12–24h 正式长跑在 CI 外执行（`go test -timeout 24h` + 大 ITERS）；本环境以默认 200 轮 + 2000 轮验证不变量与可扩展性，门槛逻辑一致。
+**Day 46 —— 报告证据审计 + 验收清单 ✅（已提交 `a58c1b9`）** —— **🎉🎉 全部 46 天开发完成 · 达到「可连续自主运行版本」代码基线（§23 M7）**。
+下一步：**开发计划已全部走完（day-01…day-46）。** 后续为 daemon 装配 + 正式长跑等部署工作。
+✅ Day 46 已验证：`go build/vet/gofmt`、全量默认测试、`-tags sqlite_modernc` 全量、`-race` 触达包、`GOOS=windows build` 全 exit 0。
+**篡改可证审计哈希链**（§47.2）：internal/audit.Chain——Anchor 锚定链头（run_created）+ Append（entry_hash = SHA256(JCS(关键字段)‖prev_hash)，每 Run 单调）+ Verify（离线重算，检出删除/重排/内容篡改，含"重算自洽的篡改仍在下一条断裂"）+ Export（第三方离线验链）；migration 0016 补 payload_json。**端到端 FullRun**（tests/lab）：创建→锚链→REPORTABLE Finding（active verdict+逐字引用+血缘三元组证据）→入链权威事件→报告只收 REPORTABLE→Finalize→验链可自证→证据血缘齐全；**多 Run 零串扰**（§4.0：报告不泄漏他 Run、跨 Run 引用编译期拒）。**《验收报告》ACCEPTANCE.md**：逐条对照 §22.4/§22.6/§13/§47.2/§16.34/§4.0/§22.3，每项给执法位置+证明测试+状态，结论签收代码基线。
 
 ---
 
@@ -40,7 +39,7 @@ tests/soak 浸泡驱动（随机故障注入 + 持续负载，规模可由 `SNAG
 |---|---|---|---|
 | `internal/evidence.BlobStore` | 无生产调用方；DEK 来源/轮换策略无归属 | Day 25+ 执行接线 / 密钥管理 | spec §45 C2「密钥丢失=证据丢失」，DEK 来源与轮换待落到开发天 |
 | `internal/providers`（Anthropic 适配器） | 无生产调用方；APIKey 来源待定 | Day 25 Agent 循环接线 | 网络关闭无法联调，Mock 承载测试（有据偏离） |
-| `audit_chain` 表 | 零写入 | Day 46 审计链 | 哈希链/签名审计待实现 |
+| `audit_chain` 表 | ✅已实现（Day 46） | — | internal/audit.Chain 哈希链已落地（Anchor/Append/Verify/Export，离线可验、篡改可检）；migration 0016 补 payload_json。生产调用方（各权威事件入链）随 daemon 接线 |
 | `internal/api.Server` | 未被 `pentagentd serve` 挂载 | Day 39+ daemon 接线 | 当前 CLI 走进程内；见下条 |
 | `cmd/pentagentd` | reconcile-only 骨架（无 HTTP 监听/无调度循环） | Day 39+ daemon 接线 | CLI 默认连 127.0.0.1:8787，对真实 daemon 暂不可用（生命周期测试走进程内）；占位注释诚实 |
 | egress 守卫操作者配置 | 代码默认已 fail-safe（守卫默认开，Q-21） | Day 39+ daemon 接线 | 把「授权内网模式」暴露为 daemon 配置开关（对应 `WithEgressGuardDisabled`）；DNS 重绑定解析时校验→Day 31 |
@@ -102,7 +101,7 @@ tests/soak 浸泡驱动（随机故障注入 + 持续负载，规模可由 `SNAG
 | 43 | M6 | UI：Report + 恢复预览 + 命令幂等/Resync（P0 收尾） | ✅已完成 | `afd7333` | 2026-11-17 | apps/web/src/features：report/ReportCenter（§16.22 阅读气质+只纳入 Reportable+被排除项单列及原因+导出 Markdown/JSON+STALE 禁导出+绑定 ExitGate/Coverage/PartialReasons）+ runs/RecoveryPreview（§16.12 未完成 Job/OUTCOME_UNKNOWN/过期身份/失效代理/策略版本/Schema 兼容，Schema 不兼容阻断）+ commands/idempotency.ts CommandRunner（§16.33 202+operation_id→轮询终态+重试复用同一 Idempotency-Key 不生成第二份+REJECTED→FAILED+不 optimistic）+ CommandButton（幂等键+二次确认+结果跳转）+ components/ConnectionStatus（LIVE/RECONNECTING/STALE/RESYNCING，UI 断线≠Run 停止）。115 Vitest 用例全绿。**M6 Web UI P0 收口**。偏离同前（e2e→Vitest 覆盖） |
 | 44 | M7 | 故障注入全套 + Policy Bypass Suite | ✅已完成 | `090a808` | 2026-11-17 | 接线关键 Hook 到真实路径（executor after_model_response_commit + exit_gate after_exit_gate_pass，生产禁用零注入）+ TryComplete 对 EXITING 幂等重入（崩溃恢复）+ tests/faultinjection（after_model_response_commit 崩溃→恢复续提交幂等不重复；after_exit_gate_pass 崩溃→留 EXITING 不半完成）+ tests/policybypass（§22.4：越域 Redirect/字面私网/非默认端口/userinfo/IPv6/编码域名/WebSocket scheme/浏览器新窗口/Proxy 熔断 + 伪造 EvidenceID/释义/跨 Run/Agent 自报升 REPORTABLE/未验证改 Coverage 全拦）。双模+-race+windows 全绿。**M7 开端** |
 | 45 | M7 | 浸泡 Soak + 资源泄漏 + Secret Canary | ✅已完成 | `5c43ee5` | 2026-11-17 | tests/soak 浸泡驱动（随机故障注入+持续负载，SNAG_SOAK_ITERS/SECONDS 可放大长跑）：§22.6 不变量断言——越域/直连全拦、副作用零重复（崩溃注入+恢复续提交）、无未完成冒充 COMPLETED、Secret Canary 脱敏零泄漏、UNKNOWN 预算结算率 100%（RESERVED→IN_FLIGHT→UNKNOWN/SUCCEEDED→SETTLED 零悬挂）、崩溃自动恢复、SSE 序号无空洞、内存堆不失控（短跑宽门、ITERS≥5万收紧 <10%）。2000 轮堆 -3.6% 无泄漏、结算 2000/2000。-race+windows 全绿 |
-| 46 | M7 | 报告证据审计 + 验收清单（可连续自主运行版本） | ⬜未开始 |  |  |  |
+| 46 | M7 | 报告证据审计 + 验收清单（可连续自主运行版本） | ✅已完成 | `a58c1b9` | 2026-11-17 | migration 0016（audit_chain 补 payload_json）+ internal/audit.Chain（§47.2 哈希链：Anchor/Append entry_hash=SHA256(JCS‖prev)/Verify 离线重算检篡改删除重排/Export 第三方验链）+ tests/lab/fullrun（端到端：创建→锚链→REPORTABLE Finding+逐字引用+血缘三元组→报告只收 REPORTABLE→Finalize→验链自证→证据血缘审计；多 Run 零串扰 §4.0）+ ACCEPTANCE.md 验收报告（逐条对照 §22.4/§22.6/§13/§47.2/§16.34/§4.0/§22.3）。双模+-race+windows 全绿。**🎉 46 天全部完成，达到可连续自主运行版本代码基线** |
 
 ---
 
@@ -194,3 +193,25 @@ tests/soak 浸泡驱动（随机故障注入 + 持续负载，规模可由 `SNAG
 **偏离均已文档化**（commit + PROGRESS + 代码注释）：Playwright e2e 本环境不可跑→Vitest 覆盖；§22.4 部分集成项随 daemon 接线；部分故障注入 Hook 随子系统落地。
 
 - **2026-11-17** — Day 45 完成（提交 `5c43ee5`），**长时稳定性是立身之本**（§22.6 浸泡测试）。新增 tests/soak 浸泡驱动：随机故障注入 + 持续负载，规模可由 `SNAG_SOAK_ITERS`/`SNAG_SOAK_SECONDS` 放大到 12–24h 长跑（`go test -timeout 24h`）。**核心理念：门槛是不变量断言（任一违反即失败），非跑够时长即过**——短跑与长跑验同一组不变量，长跑只把随机故障覆盖面铺更广。以真实原语进程内驱动并断言 §22.6：①没有越域/直连——随机越域 URL 池（越域/非默认端口/userinfo 冒充/私网直连/云元数据 169.254.169.254/IPv6/WebSocket/编码域名）过 policy.InScope 全拦、授权 URL 必过；②没有重复副作用——约 1/3 迭代在 after_model_response_commit 注入崩溃、恢复续提交，applier 任一 (step,ordinal) 调用恒 1；③没有未完成冒充 COMPLETED——每 20 轮造带非终态 Job 的 Run、Exit Gate 必不完成；④Secret Canary 不进日志/模型输入——含 Canary 的 CEBS 经 evidence.Redact 后 Canary 绝不出现；⑤**UNKNOWN 预算预留结算率 100%**——每轮 Reserve→MarkInFlight→随机 Settle / MarkUnknown+SettleUnknown(billed|released)，跑完断言零非 SETTLED、预留数==结算数；⑥Core 崩溃后自动恢复；⑦SSE 补发序号无空洞；⑧内存门——warm-up 后采 runtime.MemStats，短跑宽门兜泄漏级增长+记录，ITERS≥5 万收紧到 §22.6 的 <10%。实测：默认 200 轮 0.65s、2000 轮 8s；堆 warm→end -0.9%/-3.6%（GC 后反缩，无泄漏）、结算 2000/2000。`go build/vet/gofmt`、`-tags sqlite_modernc` soak、`-race` soak、`GOOS=windows build` 全 exit 0。**偏离（文档化）**：12–24h 正式长跑在 CI 外执行（大 ITERS + 24h timeout），本环境以 200/2000 轮验证不变量与可扩展性、门槛逻辑一致。下一步：Day 46（报告证据审计 + 验收清单，收官，dev-plan/day-46.md）。
+
+- **2026-11-17** — Day 46 完成（提交 `a58c1b9`），**🎉🎉 全部 46 天开发完成 · 达到「可连续自主运行版本」代码基线（§23 M7 收官）**。新增 migration 0016（audit_chain 补 payload_json）+ internal/audit.Chain + tests/lab/fullrun_test.go + ACCEPTANCE.md。**篡改可证审计哈希链（§47.2）**：Anchor 锚定链头（seq=1 run_created，prev_hash 空）+ Append（entry_hash = SHA-256(JCS(关键字段)‖prev_hash)，权威事件入链，每 Run 单调 sequence）+ Verify（离线式重算：链头锚点/每条 entry_hash 由 payload 重算/prev_hash 链接/sequence 连续，检出删除·重排·内容篡改，"重算自洽的篡改仍在下一条断裂"链传播）+ Export/VerifyEntries 纯函数（第三方离线验链无需 DB）。**端到端 FullRun（tests/lab）**：创建→锚链→REPORTABLE Finding（active verdict + 逐字 EvidenceCitation + 血缘三元组证据）→入链权威事件→报告只收 REPORTABLE→Finalize→验链自证→证据血缘审计（三元组齐全 + content_sha256 可重算）；**多 Run 零串扰（§4.0）**：run-A 报告不泄漏 run-B、跨 Run 引用编译期拒。**《验收报告》ACCEPTANCE.md**：逐条对照 §22.4/§22.6/§13/§47.2/§16.34/§4.0/§22.3·§45·§51，每项给执法位置+证明测试+状态。验证：`go build/vet/gofmt`、全量默认测试、`-tags sqlite_modernc` 全量、`-race`（audit+lab）、`GOOS=windows build` 全 exit 0。
+
+---
+
+## 🏁 项目收官：46 天全部完成（M0–M7）
+
+**Snag（枯木）独立 AI 渗透测试 Agent 框架按 46 天开发计划逐日两段式提交（feat+docs，均带归属行）完成，达到《验收报告》签收的「可连续自主运行版本」代码基线。**
+
+里程碑全线贯通：
+- **M0（Day 01–05）** 领域类型 + 68 表数据模型 + 四大契约冻结 + JCS 规范化 + 事件注册表 + OpenAPI 骨架 + Mock 靶场。
+- **M1（Day 06–13）** 单写者 Store + Run/Job 状态机 + Claim/Lease/Fencing + Event Journal/Outbox + 幂等账本 + Reconciler + CLI/API 骨架。
+- **M2（Day 14–22）** Action 状态机 + PDP + Scope 规范化器（差分模糊）+ 两层 Permit + Policy Proxy + 沙箱/Egress + Evidence CEBS + Receipt 对账 + 安全熔断。
+- **M3（Day 23–30）** 预算账本 + Executor Loop（StepContext 冻结 + 效果幂等）+ Context Builder（不可信隔离）+ 两阶段压缩 + Strategist + PlanCompiler CAS + Scheduler（评分/滞回/ε/转向）+ 自主推进。
+- **M4（Day 31–37）** 攻击面发现 + 模块聚类/技术栈指纹 + Hypothesis/Experiment/Coverage + 序列/竞态/OAST + 工具恢复/知识库/Skill + Candidate Finding/逐字引用/独立 Verifier + Replay/CVSS/反证降级。
+- **M5（Day 38）** 报告（程序填事实）+ Exit Gate（冻结+CAS）+ 跨 Run 关联。
+- **M6（Day 39–43）** Web UI P0 全链路：设计系统 + 核心/领域组件 + SSE 一致性 + 四大页面组 + 命令幂等。
+- **M7（Day 44–46）** 故障注入 + 策略绕过套件 + 浸泡测试 + 篡改可证哈希链 + 报告证据审计 + 验收报告。
+
+**质量基线**：后端全仓双模（默认 + sqlite_modernc）+ `-race` + `GOOS=windows build` 全 exit 0；前端 115 Vitest 用例 + typecheck + build 全绿；migrations 0001–0016；tests/{lab,soak,faultinjection,policybypass}。
+**测试模型协同**：Q-1~Q-25 全部闭环/处置，零未决 BUG。
+**余下为部署工作（非代码缺陷，已逐条登记"集成待接线清单"）**：单一 daemon 的 HTTP 监听 + 调度循环 + CLI 真连、12–24h 正式浸泡长跑、BlobStore DEK 轮换、providers APIKey、Playwright e2e、部分故障注入 Hook 随子系统落地。
