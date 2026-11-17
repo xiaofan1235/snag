@@ -47,7 +47,7 @@
 | Exit Gate 门禁条件 `test_data_cleanup` | 未接线占位（默认通过，detail 标 unwired） | 清理核对账本落地后 | §14.2「测试数据清理已核对」；清理账本表未建；同名覆盖接线 |
 | Exit Gate 门禁条件 `residual_risk_recorded` | 未接线占位（默认通过，detail 标 unwired） | residual_risk 表落地后 | §14.2「Residual Risk 已记录」；residual_risk 表未建；同名覆盖接线 |
 | Exit Gate 条件 `no_open_hypothesis` | 真实绑定（保守上界） | 假设优先级列落地后 | schema 无优先级列，当前把所有 OPEN Hypothesis 视为需处置（§14.2「高优先级 Hypothesis」的保守上界），有优先级列后收紧 |
-| apps/web 数据层（api client/useRunStream/领域组件） | 已造好且全测试覆盖，暂无生产页面调用方 | Day 41+ 页面接入 | Gallery 仅演示基础组件；SSE/Query/领域组件从 Day 41 Dashboard/Activity 起接入真实页面；当前 daemon 无 HTTP 监听（见上条），前端连真实后端随 daemon 接线 |
+| apps/web 真实后端数据 | 应用外壳已组装（App/AppShell/路由/工作台），接入预览数据 | daemon 接线后换真实查询 | 外壳三区布局 + 路由导航 + Run 工作台已成形；页面以 mockData 预览、未实现页走空态（§16.34）；当前 daemon 无 HTTP 监听（见上条），api client/useRunStream 换真实数据随 daemon 接线 |
 | 故障注入 Hook 点（部分） | after_model_response_commit/after_exit_gate_pass/before_run_state_apply 已接线并测试；before/after_permit_consume、before/after_network_send、after_compaction、during_browser_subrequests 仍为登记名未挂真实路径 | 对应子系统（Proxy/Capability/Browser/压缩）接线时同步挂 | §22.3 要求随实现落地；本批次补齐 3 个关键点，其余随各自路径落地逐个 Hook，faultinject 机制已就绪（生产禁用零开销） |
 
 ---
@@ -215,3 +215,5 @@
 **质量基线**：后端全仓双模（默认 + sqlite_modernc）+ `-race` + `GOOS=windows build` 全 exit 0；前端 115 Vitest 用例 + typecheck + build 全绿；migrations 0001–0016；tests/{lab,soak,faultinjection,policybypass}。
 **测试模型协同**：Q-1~Q-25 全部闭环/处置，零未决 BUG。
 **余下为部署工作（非代码缺陷，已逐条登记"集成待接线清单"）**：单一 daemon 的 HTTP 监听 + 调度循环 + CLI 真连、12–24h 正式浸泡长跑、BlobStore DEK 轮换、providers APIKey、Playwright e2e、部分故障注入 Hook 随子系统落地。
+
+- **2026-11-17** — **组装 Web 应用外壳**（提交见下），补齐「组件齐全但未组装成应用」的缺口（Owner 指出）。此前 apps/web 只有组件库 Gallery + 孤立 Tab 演示 PagesDemo，没有按 UI 文档 D3/D4 组装成真正的应用。本次新增 src/app：**轻量 hash 路由**（router.tsx，不引三方依赖，与本仓「手写优于大依赖」取舍一致：matchRoute 支持 :param、useRoute/Link/navigate）+ **三区布局 AppShell**（D3：顶 Agent 状态条【● 在做什么·Epoch·续航油表·Proxy·主题切换·暂停/停止】+ 左导航【待办角标】+ 中内容【路由】+ 右 Inspector【对象详情】+ 底部【指令输入+连接状态】，响应式收栏）+ **界面地图路由**（D4：全局页 Dashboard/Runs/新建向导/Inbox + 占位 Resources/Operations/Settings；Run 工作台 /runs/:id/:seg 子导航：Overview/Activity/Findings/Coverage/Report 接真实 feature 组件，其余走只读空态占位不假数据冒充 §16.34）+ **Inspector 上下文**（inspector.tsx：跨对象跳转 Finding↔Evidence↔Verifier 统一推右栏）+ mockData 预览夹具（daemon 接线前）+ app/App.tsx 路由分发。删除孤立 PagesDemo（被工作台取代），Gallery 保留为 /dev/components 开发参考。验证：apps/web 下 `pnpm typecheck` 干净、`pnpm test`（Vitest 20 文件 **126 用例**，新增 11 条路由/导航/工作台/Inspector 下钻/空态）全绿、`pnpm build`（293KB）出包；Go 侧未改动、`go build` exit 0。真实后端数据随 daemon 接线（集成待接线清单已更新）。
