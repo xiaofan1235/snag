@@ -502,6 +502,29 @@
 - 关联 bug: 无
 - 备注: 设计诚实：§19 ②③（全局 Pause、Permit）等未建组件留**显式占位注释**而非假装完成；SweepTimeouts 现只接 RECONCILING 超时，其余阻塞态超时按组件落地日映射（Day 13-17）。零新审计发现
 
+### T-044  [PASS]
+- 时间戳: 2026-11-17T08:30:00Z
+- 对应: Day 13（dev-plan/day-13.md §7，提交 2edbb40，手动触发） / **里程碑 M1 收尾**
+- 测试项: Day 13 默认套件 + 真库专项（CLI 生命周期/非法迁移/故障注入、API server、faultinject）
+- 命令: `go build/vet/test ./... -count=1` + `go test -tags sqlite_modernc ./cmd/... ./internal/api/... ./internal/faultinject/... -v`
+- 预期: 全绿（§7「create→start→pause→resume→stop 脚本断言流转」全覆盖）
+- 实际: 14 包全绿；CLI 3 测试（生命周期/非法迁移/故障注入）、API 3 测试（创建/状态/不存在启动）、faultinject 4 测试（默认禁用/武装/一次性/清除）全过
+- 结果: PASS
+- 关联 bug: 无
+
+### T-045  [PASS]
+- 时间戳: 2026-11-17T08:36:00Z
+- 对应: Day 13（HTTP 层对抗探针 + 代码审计） / 里程碑 M1
+- 测试项: HTTP 边界：坏 mode 400、DRAFT resume 409 invalid_state、全周期 DRAFT→RUNNING→PAUSED→RUNNING→STOPPED、终态再 stop 409、故障注入 500 fault_injected **且状态不变**、注入消耗后重试成功；server.go/faultinject.go/controller 增量审读
+- 命令: 临时探针（internal/api/zz_probe_test.go，已删）`go test -tags sqlite_modernc -run TestProbe -v`
+- 预期: 全部边界行为正确
+- 实际: 2/2 PASS
+- 结果: PASS
+- 关联 bug: 无
+- 备注: 设计亮点：生命周期多步迁移（start=preflight→start 等）非原子但每个中间态都是可恢复的合法驻留态（PAUSING/STOPPING 有定义的恢复路径），语义自洽；faultinject 生产默认全局禁用（Hook 是一次布尔判断，近零开销）；错误映射稳定（not_found/invalid_state/conflict/fault_injected 机读 code）。零新审计发现
+
+**🎉 里程碑 M1（Day 06-13）全部验收通过：单写者 Store、Run/Job 状态机、Claim/Lease/Fencing、Event Journal/Outbox、幂等账本、Reconciler、CLI/API 骨架。M0+M1 = Day 01-13 全绿，Q-1~Q-18 闭环（Q-18 info 跟踪 Day 40）。**
+
 ---
 
 ## 代码质量审计（2026-11-16 首轮，随测试执行，Owner 指令新增）
