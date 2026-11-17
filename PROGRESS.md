@@ -11,13 +11,13 @@
 
 ## 当前位置
 
-**Day 20 —— Evidence Store（CEBS + 内容寻址 + 加密）✅（已提交 `c21e981`）**
-下一步：**Day 21（dev-plan/day-21.md，Receipt + 对账 + OUTCOME_UNKNOWN 闭环）**（连续开发中）。
+**Day 21 —— Receipt + 对账 + OUTCOME_UNKNOWN 闭环 ✅（已提交 `5c13d12`）**
+下一步：**Day 22（dev-plan/day-22.md，安全不变量熔断器 + 工具卡住处理）**（连续开发中）。
 
-Claude 开发前自检：Day 19 无未解决项。
-✅ Day 20 已验证：`go test -tags sqlite_modernc ./internal/evidence/...` 全绿——gzip 响应→CEBS
-解压正确→plain_sha256 可独立重算、密文落盘明文不落、脱敏投影不含秘密、血缘三元组齐全、内容寻址去重、
-未知编码 fail-closed。有据偏离：无网络→gzip 替 zstd（不影响 plain_sha256）。
+Claude 开发前自检：Day 20 无未解决项。
+✅ Day 21 已验证：`go test -tags sqlite_modernc ./internal/execution/...` 全绿——正常动作→RECORDED；
+缺 Receipt/缺 Evidence/缺 Blob 三前置任一不满足均不进 RECORDED；Receipt-only/Evidence-only 孤儿
+→OUTCOME_UNKNOWN 待配对（不自动成功）。**M2 执行面闭环收口：受控动作+完整留证+崩溃一致**。
 
 ---
 
@@ -45,7 +45,7 @@ Claude 开发前自检：Day 19 无未解决项。
 | 18 | M2 | Policy Proxy + 进程内 epoch 缓存 | ✅已完成 | `179f095` | 2026-11-17 | internal/network/{policy_proxy,dns_guard,redirect}.go：CheckRequest 逐请求回查(fail-closed前/Capability链存活/网络层Scope授权窗Method复用PDP同源/egress守卫/原子消耗子请求)+ServeHTTP转发留证+越域重定向拦截;EpochCache重建前fail-closed;不信任Runner快照 |
 | 19 | M2 | Sandbox + Egress + Fake Runner | ✅已完成 | `9825ef1` | 2026-11-17 | internal/sandbox(Attestation分级FULL/PARTIAL/NONE/UNKNOWN+硬化默认§11.1+NONE/UNKNOWN fail-closed禁主动测试)/network/egress.go(代理租约唯一出口禁直连)/runners/fake(经Proxy打MockTarget回Receipt)；全链路无AI跑通;有据偏离:Go接口替gRPC、降级沙箱替容器 |
 | 20 | M2 | Evidence Store（CEBS + 内容寻址 + 加密） | ✅已完成 | `c21e981` | 2026-11-17 | internal/evidence/{blob_store,redaction,service}.go：CEBS(de-chunk+gunzip不转码)+plain_sha256内容寻址+AES-256-GCM(gzip)密文落盘明文不落+血缘三元组+脱敏投影;可独立重算;未知编码fail-closed;有据偏离gzip替zstd |
-| 21 | M2 | Receipt + 对账 + OUTCOME_UNKNOWN 闭环 | ⬜未开始 |  |  |  |
+| 21 | M2 | Receipt + 对账 + OUTCOME_UNKNOWN 闭环 | ✅已完成 | `5c13d12` | 2026-11-17 | internal/execution/{receipt,outcome_reconciler}.go：RECORDED三前置(回执终结+Exchange齐备+Blob持久化,fail-closed)+RecordAction EXECUTED→RECORDED;三种孤儿对账Receipt-only/Evidence-only→OUTCOME_UNKNOWN不自动成功;Action SM加EXECUTED→unknown边 |
 | 22 | M2 | 安全不变量熔断器 + 工具卡住(hang)处理 | ⬜未开始 |  |  |  |
 | 23 | M3 | Provider 抽象 + 原生 tool-calling 结构化输出 | ⬜未开始 |  |  |  |
 | 24 | M3 | 模型预算账本（RESERVED→SETTLED） | ⬜未开始 |  |  |  |
@@ -109,3 +109,4 @@ Claude 开发前自检：Day 19 无未解决项。
 - **2026-11-17** — Day 18 完成（提交 `179f095`），**M2 核心：Policy Proxy——所有目标请求的咽喉 + 证据产生点**。新增 internal/network/{policy_proxy,dns_guard,redirect}.go + policy/network_check.go。**CheckRequest 逐请求回查**（不信任 Runner 快照 §9.5，固定顺序 fail-closed）：缓存未重建→fail-closed（§9.0.3）；Capability 整条链存活（Permit=CONSUMED∧未撤销∧Attempt 当代活跃∧Run 可执行∧Policy 未取代）；网络层 CheckNetwork(Scope+授权窗+Method，复用 PDP 同一套 Canonicalize/HostInTarget/checkMethod=同源 Q-20)；可选 egress 守卫（私网/元数据 IP）；原子消耗一个子请求配额（放最后、被拦不耗，超 max→capability_exhausted）。**ServeHTTP**：HTTP 转发+原始留证（EvidenceRecord，Day20 接 Blob）+越域重定向拦截。**EpochCache**：ready 门（重建前 fail-closed）+撤销代际。HTTPS CONNECT/MITM+CA 随 Day19、TLS 指纹 Day31。验证：全绿（fail-closed/合规放行+留证/越域/Capability 逐请求消耗+超限/Permit 撤销/egress/重定向）。全仓双模（17 包），基线仍 1.23。下一步：Day 19。
 - **2026-11-17** — Day 19 完成（提交 `9825ef1`），**执行面闭环：分级沙箱 + Egress + Fake Runner**。新增 internal/sandbox/、network/egress.go、runners/。**有据偏离**：Runner↔Core 无法引入 gRPC/protobuf（网络关）→ 进程内 Go 接口（gRPC 形状）；无法拉真容器 → 降级进程沙箱 + attestation 分级门禁骨架。**sandbox**：Attestation FULL/PARTIAL/NONE/UNKNOWN；HardenedDefault（§11.1 全硬化）；AllowActiveTesting 对 NONE/UNKNOWN fail-closed（§31 P5x）。**egress**：EgressLease→只经代理出网的 Client（禁直连 §10.1）。**runners/fake**：attestation 门禁→Egress 代理客户端→带 X-Snag-Capability 经 Proxy 打目标→Receipt。验证：全链路（无 AI 只读动作→Proxy→Mock Target→Receipt+留证）、NONE 门禁拦截、过期租约拦截。全仓双模（18 包），基线仍 1.23。下一步：Day 20。
 - **2026-11-17** — Day 20 完成（提交 `c21e981`），**防谎报的事实源：Evidence Store**。新增 internal/evidence/。**CEBS（§47.1）**：AssembleCEBS de-chunk→按 Content-Encoding 解压(gunzip)→不转码；未知编码/br fail-closed 不猜测；plain_sha256=SHA-256(CEBS) 内容寻址。**BlobStore**：路径=f(plain_sha256) 分片，内容=AES-256-GCM(gzip(CEBS)) 密文落盘明文不落（§1.5），内容寻址去重（只追加不可改 §4.3 #5），Get 解密+解压+校验哈希。**Service.Store**：CEBS→密文→脱敏投影→evidence 元数据（血缘三元组 identity/policy_revision/proxy_lease §4.1）。Redact 先替字面秘密再套通用模式。**有据偏离**：zstd 无法引入（网络关）→ stdlib gzip（不影响 plain_sha256）。验证：gzip→CEBS 重算、密文落盘明文不落、脱敏无秘密、血缘齐全、去重、未知编码 fail-closed。全仓双模（19 包），基线仍 1.23。下一步：Day 21。
+- **2026-11-17** — Day 21 完成（提交 `5c13d12`），**M2 收口：Receipt + 对账 + OUTCOME_UNKNOWN 闭环**。新增 internal/execution/{receipt,outcome_reconciler}.go，Action SM unknown 补 EXECUTED 来源。**receipt**：Write 终结 execution_receipt（durable）；RECORDED 三前置（§5.3 全满足才进）=①Receipt 终结②Exchange 齐备（有 evidence）③Blob 持久化（plain_sha256+blob_path 无缺），RecordAction fail-closed 不自动成功。**outcome_reconciler**：三种孤儿——Receipt-only（EXECUTED 缺证据）/Evidence-only（DISPATCHED 缺回执）→OUTCOME_UNKNOWN 待配对；齐备留给 RecordAction。验证：正常→RECORDED、缺三前置任一均不进、单边孤儿→OUTCOME_UNKNOWN。全仓双模（19 包），基线仍 1.23。M2 执行面「受控动作+完整留证+崩溃一致」闭环成立。下一步：Day 22。
