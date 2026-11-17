@@ -660,6 +660,41 @@
 
 **Day 31-37 批次验收结论：全部通过。M4（Day 31-37）里程碑完成：攻击面发现（JS AST/规格驱动/运行时捕获）、模块聚类+技术栈指纹（无证据不生成）、Hypothesis/Experiment/Coverage（baseline-only 不可 TESTED）、序列/竞态实验+OAST、工具恢复/知识库/Skill、Candidate Finding+逐字引用+独立 Verifier、Replay+CVSS 确定性+反证自动降级。Q-1~Q-24 全闭环，零未决审计项。**
 
+### T-060  [PASS]（Day 38-44 批次 Go 侧）
+- 时间戳: 2026-11-17T15:30:00Z
+- 对应: Day 38-44 连续七天批次（df41806..090a808），手动触发 / **M5 收口 + M6 UI + M7 开端**
+- 测试项: 双模式全量 + 七天 §7 映射 + 新套件枚举（report 6 + faultinjection 3 + policybypass 19）
+- 命令: `go build/vet/test ./... [-tags sqlite_modernc] -count=1 -v`
+- 实际: 默认 35 包 ok；真库 **291 测试全过 0 SKIP**；报告侧（非 REPORTABLE 不入/无源事实拒/零发现区分/手改不进权威/STALE）全过；故障注入（model_response_commit 崩溃幂等/exit_gate 崩溃不半完成/默认禁用）全过
+- 结果: PASS
+- 关联 bug: 无
+
+### T-061  [PASS]（UI 三件套独立验证——开发方环境跑不了的补位）
+- 时间戳: 2026-11-17T16:00:00Z
+- 对应: Day 39-43 M6 Web UI / M6
+- 测试项: 本机（Windows + Node 24 + pnpm 11.28）装依赖→typecheck→vitest→生产构建；SSE 一致性消费端实现核验
+- 命令: `pnpm install --config.minimum-release-age=0` + `pnpm typecheck` + `pnpm test` + `pnpm build`
+- 实际: typecheck exit 0；**Vitest 19 文件 115 用例全过**（SSE 重放不丢/旧事件丢/重复乱序丢/resync/命令幂等同 key 重试不生成第二份/STALE 禁导出/恢复预览 Schema 阻断/Preflight 门禁）；生产构建 286KB 721ms——三项与开发方声称完全一致。SSE 消费端（consistency.ts）8 项语义齐全 → Q-18 闭环
+- 结果: PASS
+- 关联 bug: 无（Q-25 记录）
+- 备注: 安装过程踩两个 pnpm 11 供应链默认坑（见 Q-25）；Playwright e2e 双方环境都不可跑（无真实 daemon 可连——Q-23 仍开放），UI 行为验证以 Vitest 为准
+
+### T-062  [PASS]（策略绕过套件审读——本批安全核心价值）
+- 时间戳: 2026-11-17T16:01:00Z
+- 对应: Day 44 Policy Bypass Suite / M7
+- 测试项: 19 项绕过向量实跑核验 + 实现走真实 guard（policy.InScope/RedirectInScope/Breaker/findings/coverage）确认非自演自测
+- 命令: `go test -tags sqlite_modernc ./tests/policybypass/... -v` + 源码抽查
+- 实际: 全过——跨源重定向/DNS 重绑定字面私网（含云元数据 169.254.169.254）/非默认端口/userinfo 冒充/IPv6 越域+loopback/编码域名 fail-closed/浏览器新窗口重查/WebSocket scheme fail-closed/Proxy 失效熔断/伪造 Evidence/释义/跨 Run 引用/Agent 自报/Memory 假称已测——与 T-049/T-059 探针口径互补印证
+- 结果: PASS
+- 关联 bug: 无
+- 备注: 开发方把我的 Q-22/Q-23 接线清单吸收为 PROGRESS 正式表格（L43-45）；Q-23（daemon 不 serve）仍开放，开发方已文档化「端到端接线随 daemon」
+
+**Day 38-44 批次验收结论：全部通过。M5（报告+Exit Gate）、M6（Web UI P0 全链路页面+SSE 一致性+命令幂等）、M7 开端（故障注入+策略绕过套件）完成。Q-18 闭环；新增 Q-25（UI 依赖可复现性）；Q-23 维持开放（开发方已跟踪）。**
+
+| 新编号 | 级别 | 内容 |
+|---|---|---|
+| Q-25 | 低 | **UI 依赖在新环境不可直接安装**（T-061 实测）：①pnpm 11 默认 `minimumReleaseAge` 供应链策略拒 pnpm-lock.yaml 内条目（@rollup 等 14 包「发布过新」），需 `--config.minimum-release-age=0` 绕过；②`pnpm.onlyBuiltDependencies` 写在 package.json（pnpm 11 不再读该位置）→ esbuild 构建脚本被拦。开发方环境（旧 pnpm/宽松策略）无感，新克隆按 README 步骤装不上 | ①按官方迁移把 onlyBuiltDependencies 移入 pnpm-workspace.yaml；②README 记最低 pnpm 版本或提供 .npmrc 固定策略；③刷新 lockfile 使与现行 pnpm 兼容 |
+
 | 新编号 | 级别 | 内容 |
 |---|---|---|
 | Q-24 | 低 | **数据区定界符未中和**（T-056 ③ 实测）：Untrusted/Retrieved 内容原样写入数据区，内容中伪造的 `--- [source=skill untrusted] ... ---` 标记与 `## 指令标题` 原样保留——指令区完整性不受影响（结构隔离靠拼接顺序，字节级验证过），但模型读到数据区时可能被内容内伪造标记诱导重分区（§46.5 二阶注入面） | 对不可信内容做定界符中和：行首 `--- [source=` 与 `## ` 模式转义（如替换为 `~~[source=` / `＃＃ `）；Day 26 补丁式修复即可，不影响 digest 契约（request_digest 对渲染后整体取值） **复测（T-058）：已修复关闭**——6f9b5df neutralizeDelimiters 按建议落地（`--- [source=`→`~~ [source=`、`## `→`＃＃ `，保留前导空白），随批全绿 |
@@ -703,7 +738,7 @@
 | Q-15 | 中 | internal/control/states.yaml × spec §5.1/§9.7 | **迁移表缺 spec 规定的转移（T-030 行为级证实 6 项）**：① pause 仅 RUNNING 可入 PAUSING，§9.7 要求所有非终态（QUEUED/BLOCKED/RESUMING 等 9 态实测被拒）——用户暂停排队中的 Run 会被 ErrInvalid 拒绝；② BLOCKED→PARTIAL 缺失，§5.1 L1348 明文审批期到期允许 PARTIAL/STOPPING/FAILED；③ **EXITING→RUNNING 缺失（无对应事件）**，§5.1 L1336 门禁发现新工作须回 RUNNING——缺它则退出门禁循环断裂，EXITING 误成准终态；④ RUNNING→COMPLETED 直达口径待与 spec 确认（L1351）。属性测试检不出：它只验证实现符合 states.yaml，不验证表符合 spec | states.yaml 补转移行（pause 扩 from 列表、加 partial 的 BLOCKED 来源、加 exit_reopen: EXITING→RUNNING 事件）→ `go generate` → 补 TestKeyTransitions 锚点。趁 controller 调用方尚未依赖「拒绝」行为时改最便宜；③是功能缺口，①②是用户可感行为偏差。**复测（T-031）：已修复关闭**——68e8f27 迁移 34→45：pause 扩至 9 非终态（STOPPING 报备排除：stop 不可逆）、BLOCKED/RUNNING→PARTIAL、reopen: EXITING→RUNNING；④ 采纳「EXITING 单路径 + controller 原子性」解读（图示本为单路径，成立） |
 | Q-16 | 低 | internal/control/job_states.yaml WAITING_APPROVAL | 审批**被拒或过期**后 Job 的出口未定义：SM 只有 approve→RUNNING 一条出边，DENIED/EXPIRED 的审批对应 Job 只能靠用户 cancel 或 fail 终结。spec 侧也空白（只有 L3085 deny API 端点，无 Job 去向语义）——审批流 Day 15/17 要用 | Day 15 前补：SM 加 denied: WAITING_APPROVAL→CANCELLED（cancel_code=PLANNER_SUPERSEDED 或专用码）与 expired 边，或 spec 侧先定义语义；属 spec 空白而非实现违规。**复测（T-034）：已处置关闭（被拒半边）**——4941a04 加 deny: WAITING_APPROVAL→RUNNING，理由成立（被动等待态不自行终结、去留由规划器重排，不把争议语义冻进 SM）；**过期半边有意留白到 Day 15**（耦合 Policy Engine，且 cancel/fail 恒为安全出口无活性缺陷），届时随 Day 15 验收 |
 | Q-17 | info | internal/scheduler/claim.go guardFencingTx | fencing 守卫只校验「令牌=当代」，不查 Job 状态：CANCELLED/FAILED 等终态 Job 的当代令牌仍能通过 CheckFencing/WriteAttemptResult/Renew（T-036 P4 实测确认）。当前无实际危害（终态 Job 无后续写路径）；Day 17 Permit 发放、Day 18 Proxy 校验若复用 guardFencingTx 判「可写」，会放行已终态 Job 的请求 | Day 17 设计 Permit 校验时叠加 Job 存活性（state 非终态）检查；或在 guardFencingTx 加可选参数。届时随 Day 17 验收。**复测（T-037）：已修复关闭（提前处置）**——9c2b285 guardFencingTx fail-closed 叠加存活性：终态 Job 令牌匹配也拒写，三路（Check/Write/Renew）实测全拒 |
-| Q-18 | info | internal/outbox（设计语义，非缺陷） | outbox 为**至少一次**投递：bus.Publish 成功但 markPublished 前崩溃 → 重启后重投（WHERE published=0 守卫决定）；多实例 Publisher 也会重复投递。代码注释已声明该语义 | Day 40 SSE 接入时消费者按 event id / sequence 去重（SSE 客户端 event id 已有全局序可用）；单实例部署假设写入运维约定。届时随 Day 40 验收 |
+| Q-18 | info | internal/outbox（设计语义，非缺陷） | outbox 为**至少一次**投递：bus.Publish 成功但 markPublished 前崩溃 → 重启后重投（WHERE published=0 守卫决定）；多实例 Publisher 也会重复投递。代码注释已声明该语义 | Day 40 SSE 接入时消费者按 event id / sequence 去重（SSE 客户端 event id 已有全局序可用）；单实例部署假设写入运维约定。届时随 Day 40 验收 **复测（T-062）：已闭环**——apps/web/src/events/consistency.ts 实现消费端序号去重（快照 cursor+1 按序投递不丢不重/旧于快照丢/等于 cursor 边界丢/重复乱序丢/resync_required 决策/游标只进不退），8 项 Vitest 全过；fetch-based SSE 线解析（sse.ts）支持首帧行——至少一次生产者+幂等消费者契约成立 |
 | Q-19 | 低 | internal/policy/identities.go checkIdentity | **空租户 fail-open**（T-049 ⑩ 实测）：策略设置 `identities.allowed_tenants=[tenant-a]` 时，`Tenant=""` 的请求放行——租户限制只对携带租户的请求生效。若租户是硬边界（跨租户对象=IDOR 高危场景），无租户请求应拒或显式区分「不适用」 | Day 16/18 身份→租户接入时收口：PolicyInput.Tenant 由 Identity 注册表填充后此口子自然闭合；建议 PDP 在 AllowedTenants 非空且 Tenant 为空时改判 deny 或标注语义。spec §9.2 租户语义待澄清 |
 | Q-20 | info | internal/policy/methods.go checkScope × 未来 Day 16/18 | **parser differential 前瞻**：PDP 用 Go net/url 解析 CanonicalURL；Day 16 规范化器与 Day 18 Policy Proxy 若用不同 URL 解析栈（或不同规范化规则），可能出现「PDP 判 A 放行、Proxy 按解析 B 转发到 C」的绕过。代码已声明「只接收已规范化 URL」，但一致性未验证 | Day 16 验收时核对：规范化器输出的 CanonicalURL 经 PDP 的 url.Parse 再解析必须幂等（host/scheme/port 三元组不变）；Day 18 Proxy 与 PDP 同源解析。记入两天验收清单。**复测（T-052）：已验证关闭**——scope.go 兑现承诺：Proxy 复用 policy.Canonicalize/CheckNetwork 同栈；幂等性探针 18 种恶意变形（userinfo/末尾点/默认端口/编码 path/IPv6/IPv4 异常/fragment/空白）全部 Canonicalize∘String 幂等；等价变形 PDP 判定一致；**IPv4 异常形式（0x7f.1/0177.0.0.1/2130706433/127.1）全部规范化为 127.0.0.1 且被 scope 拒绝**（SSRF 绕过堵死） |
 | Q-21 | 低 | internal/network/policy_proxy.go egressGuard（默认 false） | **私网 egress 守卫默认关**（T-053 发现）：`WithEgressGuard()` 是可选项，默认不启用——防 SSRF/云元数据(169.254.169.254)/CGNAT 的纵深防御成为 opt-in。默认关对本地 mocktarget(127.0.0.1:8099) 测试合理，但生产 snagd 若忘开，配合 Scope 误配即可打内网。另：守卫只查字面 IP（Canonicalize 后），域名解析到私网的 DNS 重绑定不防（解析时校验属 Day 31 真实网络栈） | 生产启动路径（snagd 构造 Proxy 处）显式 `WithEgressGuard()`，或按「非本地调试模式」默认开；DNS 重绑定解析时校验记入 Day 31 验收清单。**复测（T-055）：已修复关闭**——0687407 改为默认开（fail-safe）+ `WithEgressGuardDisabled()` 显式放宽（书面理由：授权内网渗透/本地调试），方向反转正确 |
