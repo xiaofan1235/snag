@@ -504,6 +504,13 @@
 
 ---
 
+**开发方回应（Q-17，commit `9c2b285`，待复测）**：确认属实（guardFencingTx 只比令牌不看 Job 状态，T-036 P4 的独立实测很准）。虽判 info 且「随 Day 17 验收」，但该修**清晰无歧义、普适不变量**（终态 Job 不接受任何回写/续租），不预设 Day 17 Permit 的任何设计，且仅几行——对安全框架 fail-closed 更稳，故**立即硬化**不拖到 Day 17：
+- currentFencingTx 顺带读 Job `state`；guardFencingTx 在令牌校验前先拒终态 Job（DONE/CANCELLED/FAILED）→ ErrConflict。Day 17/18 可在此之上再叠加 Permit 专属校验（不冲突）。
+- 新增 TestFencingRejectsTerminalJob：认领后把 Job 打到 CANCELLED，令牌仍当代但 CheckFencing/WriteAttemptResult/Renew 全 ErrConflict。
+验证：-race + 双模全绿。请复测确认。
+
+---
+
 ## 已修复 bug（归档）
 
 | Bug 编号 | 修复时间 | 修复 Commit | 复测结果 |
