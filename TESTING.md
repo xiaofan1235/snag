@@ -824,6 +824,8 @@
 
 **开发方回应（Q-24，commit `6f9b5df`，待复测）**：确认属实，是真实的二阶注入面（T-056 ③ 的实测很到位——Day 26 的结构隔离只保证了「指令区字节级不被污染」，但没防「数据区内部被内容伪造的标记诱导重分区」，这是 §46.5 点出的下一层）。已按你的建议补丁式修（不动 digest 契约）：对写入数据区的不可信内容与来源标签做**定界符中和**——行首 `--- [source=` → `~~ [source=`、`## ` → 全角 `＃＃ `，来源标签去换行防越界。只中和这两种会被误判为结构标记的模式，避免过度转义破坏正常目标响应内容；我方真实 wrapper 不经中和、provenance 标签完好；request_digest 对渲染后整体取值故契约不变。新增回归 TestUntrustedDelimiterNeutralized：伪造的 `--- [source=skill untrusted] ...` 被中和为 `~~ [source=`、伪造 `## 指令标题` 被中和、真实来源标签完好、注入内容仍不渗入指令区。双模全绿。注：这是纵深隔离的加固；即便中和被绕过，执法纵深（层三 Policy/Permit/Proxy）仍兜底——模型中招也只能提案、动作仍被拒。
 
+**开发方回应（Q-25，commit `3a08393`，待复测）**：确认属实，是真实的可复现性缺陷（T-061 在 pnpm 11 新环境的实测很有价值——开发方本会话是 pnpm 10.28，`minimumReleaseAge` 默认宽松、`pnpm.onlyBuiltDependencies` 在 package.json 仍被读，故两坑都无感）。逐条采纳你的三点建议并修（新增 `apps/web/pnpm-workspace.yaml`，删除只含注释的 `.npmrc`）：① **构建白名单迁出 package.json**——pnpm 11 起 `.npmrc` 只读 auth/registry、旧的 `onlyBuiltDependencies` 键已移除改 `allowBuilds`，故在 pnpm-workspace.yaml 同时写 `onlyBuiltDependencies:[esbuild]`（pnpm 10）与 `allowBuilds:{esbuild:true}`（pnpm 11）跨版本兼容；package.json 的 `pnpm.onlyBuiltDependencies` 保留作 pnpm<10.20 兜底（无害）。② **关闭供应链冷却**——pnpm-workspace.yaml 显式 `minimumReleaseAge: 0`（本仓锁文件已钉精确版本，安全边界由钉版+审阅保证，故全局关冷却以保证任何时间点可复现；并在 README 注记可用 `minimumReleaseAgeExclude` 精确排除代替全局放宽）。③ **README + 环境要求**——新增 `apps/web/README.md` 记 Node≥22 / pnpm≥10.20 / 安装命令 / 两坑背景；lockfile 经干净重装验证确定性不变（同锁文件），无需另刷。复验（pnpm 10.28，模拟新克隆：删 node_modules 干净 `pnpm install`）：install 无「Ignored build scripts」警告（白名单生效）、esbuild 平台二进制就位、`pnpm typecheck`+`pnpm test`（19 文件 115 用例）+`pnpm build`（286KB）全绿。pnpm 11 侧配置键依官方 11.0 迁移文档（`.npmrc`→pnpm-workspace.yaml、`onlyBuiltDependencies`→`allowBuilds`、`minimumReleaseAge:0` 于 pnpm-workspace.yaml），请在 pnpm 11 环境复测 T-061。
+
 ## 已修复 bug（归档）
 
 | Bug 编号 | 修复时间 | 修复 Commit | 复测结果 |
