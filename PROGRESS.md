@@ -11,11 +11,11 @@
 
 ## 当前位置
 
-**Day 43 —— UI：Report + 恢复预览 + 命令幂等/Resync ✅（已提交 `afd7333`）** —— **🎉 M6 Web UI（P0）收口：UI P0 全链路可演示**。
-下一步：**Day 44（dev-plan/day-44.md，故障注入全套 + Policy Bypass Suite，回到 Go 后端）**。
-✅ Day 43 已验证：`apps/web` 下 `pnpm typecheck` + `pnpm test`（Vitest，19 文件 115 用例）+ `pnpm build`（286KB）全绿；Go 侧未改动、`go build` exit 0。
-ReportCenter（§16.22 阅读气质衬线；只纳入 Reportable；**被排除 Candidate/Blocked/UnableToVerify 单列及原因不静默消失**；导出 Markdown/JSON，**STALE 依赖失效禁止导出分发**；绑定 Exit Gate/Coverage 快照/PartialReasons）+ RecoveryPreview（§16.12 未完成 Job/未知结果 Action/过期身份/失效代理/策略版本/Schema 兼容；Schema 不兼容阻断恢复）+ **命令幂等核心**（CommandRunner：202+operation_id→轮询终态，**重试复用同一 Idempotency-Key 不生成第二份**，REJECTED→FAILED，不 optimistic 改状态）+ CommandButton（幂等键+二次确认+结果跳转）+ ConnectionStatus（LIVE/RECONNECTING/STALE/RESYNCING，**UI 断线≠Run 停止**）。
-**偏离（文档化）**：延续 Day 41/42——Playwright e2e 本环境不跑，Vitest 单元/组件测试覆盖命令幂等（同 key 重试不重复）、导出门禁、恢复预览、连接状态语义。
+**Day 44 —— 故障注入全套 + Policy Bypass Suite ✅（已提交 `090a808`）** —— **🎉 新七天批次（Day 38–44）全部完成 · M7 加固开端：敢说它安全的前提**。
+下一步：**Day 45（dev-plan/day-45.md，待下一批次）**。
+✅ Day 44 已验证：`go build/vet/gofmt`、全量默认测试、`-tags sqlite_modernc` 全量、`-race` 触达包、`GOOS=windows build` 全 exit 0。
+**接线关键 Hook 到真实路径**（§22.3 本应随实现落地，补齐）：executor 的 after_model_response_commit + exit_gate 的 after_exit_gate_pass（生产默认禁用零注入）。**故障注入套件**（tests/faultinjection）：after_model_response_commit 崩溃→恢复续提交效果幂等不重复；after_exit_gate_pass 崩溃→不写终态留 EXITING 可恢复（TryComplete 改为对 EXITING 幂等重入）绝不半完成。**策略绕过套件**（tests/policybypass）：越域 Redirect/字面私网/非默认端口/userinfo 冒充/IPv6/编码域名 fail-closed/WebSocket scheme/浏览器新窗口重查/Proxy 失效熔断 Kill Switch + 伪造 Evidence ID/释义冒充/跨 Run 引用/Agent 自报升 REPORTABLE/未验证实验改 Coverage 全部被拦。
+**偏离/接线（文档化）**：§22.4 其余集成项（Permit 重放/过期 Attempt/多 Worker 抢配额/摘要复用 Approval/收窄在途/沙箱 PARTIAL）在对应包已有执法与单测，端到端接线随 daemon，套件内已注记位置。
 
 ---
 
@@ -49,6 +49,7 @@ ReportCenter（§16.22 阅读气质衬线；只纳入 Reportable；**被排除 C
 | Exit Gate 门禁条件 `residual_risk_recorded` | 未接线占位（默认通过，detail 标 unwired） | residual_risk 表落地后 | §14.2「Residual Risk 已记录」；residual_risk 表未建；同名覆盖接线 |
 | Exit Gate 条件 `no_open_hypothesis` | 真实绑定（保守上界） | 假设优先级列落地后 | schema 无优先级列，当前把所有 OPEN Hypothesis 视为需处置（§14.2「高优先级 Hypothesis」的保守上界），有优先级列后收紧 |
 | apps/web 数据层（api client/useRunStream/领域组件） | 已造好且全测试覆盖，暂无生产页面调用方 | Day 41+ 页面接入 | Gallery 仅演示基础组件；SSE/Query/领域组件从 Day 41 Dashboard/Activity 起接入真实页面；当前 daemon 无 HTTP 监听（见上条），前端连真实后端随 daemon 接线 |
+| 故障注入 Hook 点（部分） | after_model_response_commit/after_exit_gate_pass/before_run_state_apply 已接线并测试；before/after_permit_consume、before/after_network_send、after_compaction、during_browser_subrequests 仍为登记名未挂真实路径 | 对应子系统（Proxy/Capability/Browser/压缩）接线时同步挂 | §22.3 要求随实现落地；本批次补齐 3 个关键点，其余随各自路径落地逐个 Hook，faultinject 机制已就绪（生产禁用零开销） |
 
 ---
 
@@ -99,7 +100,7 @@ ReportCenter（§16.22 阅读气质衬线；只纳入 Reportable；**被排除 C
 | 41 | M6 | UI：Dashboard + Run 向导 + Overview + Activity | ✅已完成 | `ee82f76` | 2026-11-17 | apps/web/src/features：dashboard/Dashboard（§16.12 四区值班台，终态·非终态形状区分，BLOCKED 恢复入口，操作调命令 API）+ runs/RunWizard（§16.2 5 步 + Preflight 全过才 Start + SecretRef 不回显）+ overview/Overview（§16.3 真实分数 SurfaceRevision/实验/覆盖/验证分数+具体阻塞，无虚假百分比）+ activity/ActivityStream（§16.13 Typed 事件卡流+Live Follow 可暂停+「有 N 条新事件」+AgentSessionPanel，eventKind 纯映射，无原始 CoT）+ app/PagesDemo 预览接入。89 Vitest 用例全绿。偏离：Playwright e2e 本环境不跑（需浏览器二进制+daemon 监听）→ Vitest 组件/集成测试覆盖同等流程 |
 | 42 | M6 | UI：Finding + Evidence + Approval + Coverage | ✅已完成 | `30b2280` | 2026-11-17 | apps/web/src/features：findings/FindingDetail（§16.7 事实区/推断区视觉分开+点击事实→右栏 CEBS 字节高亮 §3.4+baseline/variant diff+请求重放走命令非前端直发）+ approvals/ApprovalCenter（§16.10 动作 Diff 正常→待审批+身份/对象/副作用/策略原因/过期；Approve Once 带 revision+ActionDigest/Deny/Deny and Cancel Related；不批量批准高风险）+ coverage/CoverageMatrix（§16.8 接口×攻击类型矩阵+身份过滤+5 态+单元格下钻 Action+Evidence+未测原因+SurfaceRevision）+ Evidence 复用 Day 40 EvidenceViewer。99 Vitest 用例全绿。偏离同 Day 41（e2e→Vitest 覆盖） |
 | 43 | M6 | UI：Report + 恢复预览 + 命令幂等/Resync（P0 收尾） | ✅已完成 | `afd7333` | 2026-11-17 | apps/web/src/features：report/ReportCenter（§16.22 阅读气质+只纳入 Reportable+被排除项单列及原因+导出 Markdown/JSON+STALE 禁导出+绑定 ExitGate/Coverage/PartialReasons）+ runs/RecoveryPreview（§16.12 未完成 Job/OUTCOME_UNKNOWN/过期身份/失效代理/策略版本/Schema 兼容，Schema 不兼容阻断）+ commands/idempotency.ts CommandRunner（§16.33 202+operation_id→轮询终态+重试复用同一 Idempotency-Key 不生成第二份+REJECTED→FAILED+不 optimistic）+ CommandButton（幂等键+二次确认+结果跳转）+ components/ConnectionStatus（LIVE/RECONNECTING/STALE/RESYNCING，UI 断线≠Run 停止）。115 Vitest 用例全绿。**M6 Web UI P0 收口**。偏离同前（e2e→Vitest 覆盖） |
-| 44 | M7 | 故障注入全套 + Policy Bypass Suite | ⬜未开始 |  |  |  |
+| 44 | M7 | 故障注入全套 + Policy Bypass Suite | ✅已完成 | `090a808` | 2026-11-17 | 接线关键 Hook 到真实路径（executor after_model_response_commit + exit_gate after_exit_gate_pass，生产禁用零注入）+ TryComplete 对 EXITING 幂等重入（崩溃恢复）+ tests/faultinjection（after_model_response_commit 崩溃→恢复续提交幂等不重复；after_exit_gate_pass 崩溃→留 EXITING 不半完成）+ tests/policybypass（§22.4：越域 Redirect/字面私网/非默认端口/userinfo/IPv6/编码域名/WebSocket scheme/浏览器新窗口/Proxy 熔断 + 伪造 EvidenceID/释义/跨 Run/Agent 自报升 REPORTABLE/未验证改 Coverage 全拦）。双模+-race+windows 全绿。**M7 开端** |
 | 45 | M7 | 浸泡 Soak + 资源泄漏 + Secret Canary | ⬜未开始 |  |  |  |
 | 46 | M7 | 报告证据审计 + 验收清单（可连续自主运行版本） | ⬜未开始 |  |  |  |
 
@@ -169,3 +170,25 @@ ReportCenter（§16.22 阅读气质衬线；只纳入 Reportable；**被排除 C
 - **2026-11-17** — Day 42 完成（提交 `30b2280`），**P0 页面组 2：审批 + 看发现 + 看证据 + 看覆盖的核心面**（UI 文档 §16.7/16.8/16.9/16.10、D6、§3.4）。新增 apps/web/src/features。**FindingDetail（§16.7/§3.4）**：**事实区与推断区视觉分开**——事实挂 EvidenceCitation（byte 区间），点击任一事实→右栏 CEBS 字节高亮对应区间（mark）；推断区是 AI 结论不作 grounding；baseline/variant 并排 diff（复用 DiffViewer）；受影响接口/账号对象关系/Verifier 意见/反对证据/定级理由/清理状态；**请求重放走命令回调创建新 Verification Job，不是前端直接发请求**。**Evidence**：复用 Day 40 EvidenceViewer（默认脱敏投影+Raw 需 Reveal 二次确认）。**ApprovalCenter（§16.10）**：动作 Diff（正常动作→待审批动作）+身份+对象+副作用+策略原因+过期时间；Approve Once（带 Approval Revision+Action Digest 供冲突检测）/Deny/Deny and Cancel Related Jobs，非 PENDING 不显示操作；**不提供批量批准高风险**（逐条处理）。**CoverageMatrix（§16.8）**：接口×攻击类型矩阵+按身份过滤+状态 TESTED/NA/BLOCKED/STALE/UNTESTED（文字+符号+色不只靠色）+单元格点击下钻 Action+Evidence+未测原因+SurfaceRevision。PagesDemo 增 Finding/审批/覆盖率三 Tab 预览。**偏离（文档化）**：延续 Day 41——Playwright e2e 本环境不可跑→Vitest 组件/集成测试覆盖同等流程（事实→证据 CEBS 高亮、审批 revision+digest、Deny and Cancel、覆盖单元格下钻与未测原因）。验证：apps/web 下 `pnpm typecheck` 干净、`pnpm test`（Vitest 17 文件 99 用例）全绿、`pnpm build`（278KB+diff.worker chunk）出包；Go 侧未改动、`go build` exit 0。下一步：Day 43（Report + 恢复预览 + 命令幂等/Resync，P0 收尾，dev-plan/day-43.md）。
 
 - **2026-11-17** — Day 43 完成（提交 `afd7333`），**🎉 M6 Web UI（P0）收口：UI P0 全链路可演示**（UI 文档 §16.22/16.12/16.33、§16.34 P0）。新增 apps/web/src/features + components/ConnectionStatus。**ReportCenter（§16.22）**：阅读气质（衬线/留白）安全 Markdown 预览；**只纳入 Reportable Finding**；被排除 Candidate/Blocked/UnableToVerify **单独列出及原因不静默消失**；导出 Markdown/JSON（本地下载，不自动上传第三方）；**STALE 报告（依赖失效）禁止导出分发**（§13.4）；绑定 Exit Gate/Coverage 快照/PartialReasons。**RecoveryPreview（§16.12）**：Resume 前展示未完成 Job/未知结果 Action/过期身份/失效代理/策略版本/Schema 兼容；Schema 不兼容阻断恢复。**命令幂等核心（§16.33/§16.34 P0 不可后移）**：CommandRunner——提交返回 202+operation_id 只表示受理，轮询 operation 终态才反映结果（**不 optimistic 改状态**）；**网络超时重试复用同一 Idempotency-Key，后端据此不生成第二份审批/Job**；REJECTED→FAILED/轮询超时→FAILED。CommandButton（幂等键+二次确认+结果跳转+pending 态）。**ConnectionStatus（§16.33）**：LIVE/RECONNECTING/STALE/RESYNCING，文案明确 **UI 断线/离线≠Run 已停止**（SSE Resync 协议本身 Day 40 已实现）。PagesDemo 增报告/恢复预览 Tab+顶栏 ConnectionStatus+CommandButton 演示。**至此 M6 P0 收口**：创建→审批→暂停→恢复→Finding→报告全链路页面齐备，断线一致性（Day 40）+命令幂等（本日）保无重复/倒退。**偏离（文档化）**：延续 Day 41/42——Playwright e2e 本环境不可跑→Vitest 单元/组件测试覆盖命令幂等（同 key 重试不生成第二份、REJECTED/超时路径）、导出门禁（STALE 禁导出）、恢复预览（Schema 不兼容阻断）、连接状态语义。验证：apps/web 下 `pnpm typecheck` 干净、`pnpm test`（Vitest 19 文件 115 用例）全绿、`pnpm build`（286KB）出包；Go 侧未改动、`go build` exit 0。下一步：Day 44（故障注入全套 + Policy Bypass Suite，回到 Go 后端，dev-plan/day-44.md）。
+
+- **2026-11-17** — Day 44 完成（提交 `090a808`），**🎉 新七天批次（Day 38–44）全部完成 · M7 加固开端：敢说它安全的前提**（§22.3 故障注入 / §22.4 策略绕过）。**接线关键 Hook 到真实路径**（§22.3 本应随实现落地，补齐）：internal/agent/executor.go after_model_response_commit（CommitModelResponse 后、CommitEffects 前）+ internal/control/exit_gate.go after_exit_gate_pass（门禁通过、终态 CAS 前）；TryComplete 改为对 EXITING 幂等重入（崩溃后留 EXITING 可恢复续评估）；生产默认禁用零注入，现有测试不受影响。**故障注入套件（tests/faultinjection）**：after_model_response_commit 崩溃→恢复对同一 model_step 续提交效果 applier 恰每效果一次无重复（幂等）、重复恢复 0 新提交；after_exit_gate_pass 崩溃→不写终态留 EXITING 绝不半完成、解除后重入正常 COMPLETED；默认禁用零注入。**策略绕过套件（tests/policybypass）**：guards_test（走 policy.InScope/redirect.RedirectInScope/network.Breaker 真实 guard）越域 Redirect/DNS 重绑定字面私网含云元数据 169.254.169.254/非默认端口/userinfo 冒充/IPv6 越域+loopback/编码域名非 ASCII fail-closed/Runner 直连越域/浏览器新窗口重查/WebSocket scheme fail-closed/Proxy 失效熔断 Kill Switch；evidence_test（走 findings/coverage 真实执法）伪造 Evidence ID（ErrForgedEvidence）/释义冒充（ErrParaphrase）/跨 Run 引用（ErrCrossRun）/Agent 自报升 Verifier-only（ErrAgentSelfReport）/Memory 声称已测改 Coverage 但实验未验证（ErrNotVerifiedExperiment）全部被拦。**接线说明（文档化）**：§22.4 其余集成项（Permit 重放/过期 Attempt/多 Worker 抢配额/摘要复用 Approval/收窄在途/沙箱 PARTIAL）在对应包已有执法与单测，端到端接线随 daemon，套件内注记位置；其余未挂真实路径的 Hook 点随对应子系统落地逐个挂（集成待接线清单已登记）。验证：`go build/vet/gofmt`、全量默认测试、`-tags sqlite_modernc` 全量、`-race` 触达包、`GOOS=windows build` 全 exit 0。
+
+---
+
+## 📦 批次总结：Day 38–44（M5 收口 + M6 Web UI P0 + M7 加固开端）
+
+**7 天连续开发全部完成并推送，逐日两段式提交（feat+docs）均带归属行。**
+
+- **Day 38（M5）** `df41806` — 报告（程序填事实+AI 只写描述，只收 REPORTABLE，缺引用拒）+ Exit Gate（EXITING 冻结+评估后再验修订+同事务 CAS 完成，漂移/崩溃放弃；预算耗尽 PARTIAL+类型化原因）+ 跨 Run 关联（仅同 Workspace 同 Scope）。migrations/0015。
+- **Day 39（M6）** `9785d75` — 前端工程骨架（React+TS+Vite+Vitest+pnpm）+ 设计 Token 亮/暗（照 D1）+ 10 核心组件（全状态+无障碍+只用 Token）+ StatusBadge 全站状态映射 + Select>50/Table>100 虚拟化。**实测 npm registry 可达→真实实现非降级**。
+- **Day 40（M6）** `65368a9` — 契约生成器扩展（TS 迁 apps/web+OpenAPI→TS）+ API client（同源/HttpOnly/脱敏）+ SSE 快照一致性核心（补发无空洞/丢旧/resync/断线退避）+ 领域组件（EvidenceViewer 默认脱敏+Reveal/DiffViewer Web Worker/Inspector）。
+- **Day 41（M6）** `ee82f76` — P0 页面组 1：Dashboard 四区值班台 + RunWizard 5 步（Preflight 全过才 Start）+ Overview 真实分数（无虚假 73%）+ ActivityStream（Typed 卡流+Live Follow+Agent Session）。
+- **Day 42（M6）** `30b2280` — P0 页面组 2：FindingDetail（事实/推断分区+点击即证据 CEBS 高亮）+ ApprovalCenter（动作 Diff+Approve Once/Deny/Deny and Cancel，不批量批高风险）+ CoverageMatrix（矩阵+下钻）。
+- **Day 43（M6）** `afd7333` — P0 收口：ReportCenter（只纳 Reportable+被排除项单列+STALE 禁导出）+ RecoveryPreview + 命令幂等核心（同 Idempotency-Key 重试不生成第二份）+ ConnectionStatus（UI 断线≠Run 停止）。**M6 Web UI P0 全链路可演示**。
+- **Day 44（M7）** `090a808` — 接线关键故障注入 Hook + 故障注入套件（崩溃恢复幂等/不半完成）+ 策略绕过套件（§22.4 逐条 fail-closed）。**M7 加固开端**。
+
+**网络约束更新（本批次关键发现）**：本会话 npm/pnpm registry 实际可达（pip/go get 仍受限），故 M6 UI（Day 39–43）全部按 UI 文档真实实现 React+TS+Vite 全家桶，非 stdlib 降级——与此前 Go 侧 go get 不可用的偏离相互独立。
+
+**前端测试**：apps/web 累计 19 文件 115 Vitest 用例，`pnpm typecheck`+`pnpm build` 全绿。
+**后端测试**：全仓双模（默认 + sqlite_modernc）+ `-race` + `GOOS=windows build` 全 exit 0；新增 migrations/0015、tests/faultinjection、tests/policybypass。
+**偏离均已文档化**（commit + PROGRESS + 代码注释）：Playwright e2e 本环境不可跑→Vitest 覆盖；§22.4 部分集成项随 daemon 接线；部分故障注入 Hook 随子系统落地。
