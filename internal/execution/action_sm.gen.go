@@ -49,6 +49,7 @@ var actionTransitions = map[actionSmKey]domain.ActionState{
 	{domain.ActionDispatched, ActionEventExecute}:             domain.ActionExecuted,
 	{domain.ActionExecuted, ActionEventRecord}:                domain.ActionRecorded,
 	{domain.ActionDispatched, ActionEventUnknown}:             domain.ActionOutcomeUnknown,
+	{domain.ActionExecuted, ActionEventUnknown}:               domain.ActionOutcomeUnknown,
 	{domain.ActionOutcomeUnknown, ActionEventReconcileRecord}: domain.ActionRecorded,
 	{domain.ActionOutcomeUnknown, ActionEventReconcileCancel}: domain.ActionCancelled,
 	{domain.ActionProposed, ActionEventCancel}:                domain.ActionCancelled,

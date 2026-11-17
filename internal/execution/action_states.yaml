@@ -42,8 +42,9 @@ transitions:
   - { event: dispatch,      from: AUTHORIZED,       to: DISPATCHED }
   - { event: execute,       from: DISPATCHED,       to: EXECUTED }   # 收到确定回执（含带 failure_class 的失败）
   - { event: record,        from: EXECUTED,         to: RECORDED }   # 证据落库（终态；前置条件 Day 21 填）
-  # 崩溃一致性（§5.3 核心）
-  - { event: unknown,          from: DISPATCHED,      to: OUTCOME_UNKNOWN } # 崩溃/结果未确认
+  # 崩溃一致性（§5.3 核心）。unknown 从 DISPATCHED（崩溃/结果未确认）与 EXECUTED（Receipt-only 孤儿：
+  # 有回执但证据缺失，§5.3 三种孤儿之一）进入——两种孤儿都转 OUTCOME_UNKNOWN 待配对，不自动标成功。
+  - { event: unknown,          from: [DISPATCHED, EXECUTED], to: OUTCOME_UNKNOWN }
   - { event: reconcile_record, from: OUTCOME_UNKNOWN, to: RECORDED }        # 对账确认已执行
   - { event: reconcile_cancel, from: OUTCOME_UNKNOWN, to: CANCELLED }       # 对账确认无副作用/放弃
   # 取消：仅「尚未派发」的态（DISPATCHED 必须经对账，不在此列）

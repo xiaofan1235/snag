@@ -18,6 +18,7 @@ stateDiagram-v2
     DISPATCHED --> EXECUTED: execute
     EXECUTED --> RECORDED: record
     DISPATCHED --> OUTCOME_UNKNOWN: unknown
+    EXECUTED --> OUTCOME_UNKNOWN: unknown
     OUTCOME_UNKNOWN --> RECORDED: reconcile_record
     OUTCOME_UNKNOWN --> CANCELLED: reconcile_cancel
     PROPOSED --> CANCELLED: cancel
@@ -38,6 +39,7 @@ stateDiagram-v2
 | DISPATCHED | execute | EXECUTED |
 | EXECUTED | record | RECORDED |
 | DISPATCHED | unknown | OUTCOME_UNKNOWN |
+| EXECUTED | unknown | OUTCOME_UNKNOWN |
 | OUTCOME_UNKNOWN | reconcile_record | RECORDED |
 | OUTCOME_UNKNOWN | reconcile_cancel | CANCELLED |
 | PROPOSED | cancel | CANCELLED |
