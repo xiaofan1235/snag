@@ -136,6 +136,7 @@ func TestJobKeyTransitions(t *testing.T) {
 		{domain.JobRetrying, control.JobEventRetry, domain.JobReady, true},
 		{domain.JobRunning, control.JobEventNeedApproval, domain.JobWaitingApproval, true},
 		{domain.JobWaitingApproval, control.JobEventApprove, domain.JobRunning, true},
+		{domain.JobWaitingApproval, control.JobEventDeny, domain.JobRunning, true}, // Q-16：审批被拒→回 RUNNING 重排
 		{domain.JobRunning, control.JobEventReconcile, domain.JobReconciling, true},
 		{domain.JobReconciling, control.JobEventReconcileRetry, domain.JobRetrying, true},
 		{domain.JobReconciling, control.JobEventReconcileUnresolved, domain.JobCancelled, true},

@@ -16,6 +16,7 @@ stateDiagram-v2
     CLAIMED --> RUNNING: run
     RUNNING --> WAITING_APPROVAL: need_approval
     WAITING_APPROVAL --> RUNNING: approve
+    WAITING_APPROVAL --> RUNNING: deny
     RUNNING --> SUBMITTED: submit
     SUBMITTED --> VERIFYING: verify
     VERIFYING --> DONE: done
@@ -56,6 +57,7 @@ stateDiagram-v2
 | CLAIMED | run | RUNNING |
 | RUNNING | need_approval | WAITING_APPROVAL |
 | WAITING_APPROVAL | approve | RUNNING |
+| WAITING_APPROVAL | deny | RUNNING |
 | RUNNING | submit | SUBMITTED |
 | SUBMITTED | verify | VERIFYING |
 | VERIFYING | done | DONE |

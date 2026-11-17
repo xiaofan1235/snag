@@ -46,8 +46,17 @@ transitions:
   - { event: run,   from: CLAIMED, to: RUNNING }  # attempt 开始
 
   # --- 红线审批（动作需审批时挂起 Job） ---
+  # 【Q-16 处置】审批**被拒**的出口：deny→RUNNING。理由是架构上被迫、非猜测——
+  # WAITING_APPROVAL 是被动等待态，不能自行决定 Job 终结；审批被拒只意味着「该红线动作
+  # 不可行」（动作侧转 POLICY_DENIED），Job 的去留只能由规划器在 RUNNING 侧重排决定
+  # （换等价无红线动作 / 放弃 → 届时走 cancel/fail/partial）。故 deny 把控制权交回 RUNNING，
+  # 不把「被拒=Job 死」这类有争议语义冻进 SM。与 approve 同落 RUNNING、但事件不同、下游含义不同。
+  # 【仍留白，延后 Day 15】审批**过期**的出口：是「重发审批」还是「超时放弃」耦合 Day 15 Policy
+  #   Engine / Day 17 两层 Permit 的机制，spec 侧亦空白（§L3085 只有 deny API，无 Job 去向语义），
+  #   此刻定边必是猜测；且无活性缺陷（cancel/fail 恒为安全出口，非 Q-15 那种无出边陷阱）。待 Day 15 定。
   - { event: need_approval, from: RUNNING,          to: WAITING_APPROVAL }
   - { event: approve,       from: WAITING_APPROVAL, to: RUNNING }
+  - { event: deny,          from: WAITING_APPROVAL, to: RUNNING }
 
   # --- 提交与验证 ---
   - { event: submit,       from: RUNNING,   to: SUBMITTED }  # attempt 完成、提交结果

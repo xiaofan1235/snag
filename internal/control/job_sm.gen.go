@@ -15,6 +15,7 @@ const (
 	JobEventRun                 JobEvent = "run"
 	JobEventNeedApproval        JobEvent = "need_approval"
 	JobEventApprove             JobEvent = "approve"
+	JobEventDeny                JobEvent = "deny"
 	JobEventSubmit              JobEvent = "submit"
 	JobEventVerify              JobEvent = "verify"
 	JobEventDone                JobEvent = "done"
@@ -28,7 +29,7 @@ const (
 )
 
 // JobAllEvents 是全部事件（供穷举/属性测试）。
-var JobAllEvents = []JobEvent{JobEventReady, JobEventBlock, JobEventUnblock, JobEventClaim, JobEventRun, JobEventNeedApproval, JobEventApprove, JobEventSubmit, JobEventVerify, JobEventDone, JobEventVerifyRetry, JobEventRetry, JobEventReconcile, JobEventReconcileRetry, JobEventReconcileUnresolved, JobEventCancel, JobEventFail}
+var JobAllEvents = []JobEvent{JobEventReady, JobEventBlock, JobEventUnblock, JobEventClaim, JobEventRun, JobEventNeedApproval, JobEventApprove, JobEventDeny, JobEventSubmit, JobEventVerify, JobEventDone, JobEventVerifyRetry, JobEventRetry, JobEventReconcile, JobEventReconcileRetry, JobEventReconcileUnresolved, JobEventCancel, JobEventFail}
 
 // JobAllStates 是全部状态。
 var JobAllStates = []domain.JobState{domain.JobPending, domain.JobBlocked, domain.JobReady, domain.JobClaimed, domain.JobRunning, domain.JobReconciling, domain.JobWaitingApproval, domain.JobSubmitted, domain.JobVerifying, domain.JobDone, domain.JobRetrying, domain.JobCancelled, domain.JobFailed}
@@ -52,6 +53,7 @@ var jobTransitions = map[jobSmKey]domain.JobState{
 	{domain.JobClaimed, JobEventRun}:                     domain.JobRunning,
 	{domain.JobRunning, JobEventNeedApproval}:            domain.JobWaitingApproval,
 	{domain.JobWaitingApproval, JobEventApprove}:         domain.JobRunning,
+	{domain.JobWaitingApproval, JobEventDeny}:            domain.JobRunning,
 	{domain.JobRunning, JobEventSubmit}:                  domain.JobSubmitted,
 	{domain.JobSubmitted, JobEventVerify}:                domain.JobVerifying,
 	{domain.JobVerifying, JobEventDone}:                  domain.JobDone,
