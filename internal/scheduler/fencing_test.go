@@ -207,6 +207,39 @@ func TestLeaseExpiryRegenAndStaleFencingRejected(t *testing.T) {
 	}
 }
 
+// Q-17：终态 Job（CANCELLED/FAILED/DONE）即便令牌匹配也拒写/拒续租（fail-closed 存活性校验）。
+func TestFencingRejectsTerminalJob(t *testing.T) {
+	w, _, ctx := openSchedDB(t)
+	jobID, sess := seedReadyJob(t, w, ctx, "job-4")
+	s := scheduler.New(w)
+
+	c, err := s.Claim(ctx, jobID, sess)
+	if err != nil {
+		t.Fatalf("Claim: %v", err)
+	}
+	// 令牌当前有效。
+	if e := s.CheckFencing(ctx, jobID, c.FencingToken); e != nil {
+		t.Fatalf("认领后当代令牌应有效，得 %v", e)
+	}
+	// 直接把 Job 打到终态（模拟 Day 08 取消/失败落定）。
+	if e := w.Durable(ctx, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`UPDATE jobs SET state=? WHERE id=?`, string(domain.JobCancelled), string(jobID))
+		return err
+	}); e != nil {
+		t.Fatal(e)
+	}
+	// 令牌仍是当代，但 Job 终态 → 一律拒。
+	if e := s.CheckFencing(ctx, jobID, c.FencingToken); !errors.Is(e, domain.ErrConflict) {
+		t.Errorf("终态 Job 的 CheckFencing 应 ErrConflict，得 %v", e)
+	}
+	if e := s.WriteAttemptResult(ctx, jobID, c.FencingToken, `{"x":1}`); !errors.Is(e, domain.ErrConflict) {
+		t.Errorf("终态 Job 的 WriteAttemptResult 应 ErrConflict，得 %v", e)
+	}
+	if _, e := s.Renew(ctx, jobID, c.FencingToken); !errors.Is(e, domain.ErrConflict) {
+		t.Errorf("终态 Job 的 Renew 应 ErrConflict，得 %v", e)
+	}
+}
+
 // 续租：当代令牌可续、陈旧令牌被拒。
 func TestRenewFencing(t *testing.T) {
 	w, _, ctx := openSchedDB(t)

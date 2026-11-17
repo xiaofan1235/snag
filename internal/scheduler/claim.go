@@ -127,34 +127,43 @@ func (s *Scheduler) Claim(ctx context.Context, jobID, agentSessionID domain.ID) 
 	return &res, nil
 }
 
-// currentFencingTx 读 Job 当代（= jobs.generation）对应 Attempt 的 fencing_token。
-// found=false 表示该代无 Attempt（尚未认领）。
-func currentFencingTx(ctx context.Context, tx *sql.Tx, jobID domain.ID) (int64, bool, error) {
+// currentFencingTx 读 Job 当代（= jobs.generation）对应 Attempt 的 fencing_token 及 Job 当前状态。
+// found=false 表示该代无 Attempt（尚未认领）。state 用于存活性判断（终态 Job 拒写，见 guardFencingTx）。
+func currentFencingTx(ctx context.Context, tx *sql.Tx, jobID domain.ID) (tok int64, state domain.JobState, found bool, err error) {
 	var gen int64
-	if e := tx.QueryRowContext(ctx, `SELECT generation FROM jobs WHERE id=?`, string(jobID)).Scan(&gen); e != nil {
+	var st string
+	if e := tx.QueryRowContext(ctx, `SELECT generation, state FROM jobs WHERE id=?`, string(jobID)).Scan(&gen, &st); e != nil {
 		if e == sql.ErrNoRows {
-			return 0, false, domain.ErrNotFound
+			return 0, "", false, domain.ErrNotFound
 		}
-		return 0, false, e
+		return 0, "", false, e
 	}
-	var tok int64
+	var t int64
 	e := tx.QueryRowContext(ctx,
-		`SELECT fencing_token FROM attempts WHERE job_id=? AND generation=?`, string(jobID), gen).Scan(&tok)
+		`SELECT fencing_token FROM attempts WHERE job_id=? AND generation=?`, string(jobID), gen).Scan(&t)
 	if e == sql.ErrNoRows {
-		return 0, false, nil
+		return 0, domain.JobState(st), false, nil
 	}
 	if e != nil {
-		return 0, false, e
+		return 0, domain.JobState(st), false, e
 	}
-	return tok, true, nil
+	return t, domain.JobState(st), true, nil
 }
 
 // guardFencingTx 校验 fencingToken 是否为该 Job **当代有效令牌**；不匹配（陈旧/越界）返回 ErrConflict。
 // 旧 Attempt 的 fencing_token 既小于当代、其 generation 也非当代，故一律被拒（§31 旧写者拒绝）。
+//
+// 【Q-17 处置】fail-closed 叠加存活性：终态 Job（DONE/CANCELLED/FAILED）即便令牌匹配也拒写——
+// 终态 Job 不应再接受任何回写/续租，这是普适不变量（不预设 Day 17 Permit 的任何具体设计，
+// Day 17/18 可在此之上再叠加 Permit 专属校验）。当前 Day 09 无害，但守卫顺手 fail-closed 更稳。
 func guardFencingTx(ctx context.Context, tx *sql.Tx, jobID domain.ID, fencingToken int64) error {
-	cur, found, e := currentFencingTx(ctx, tx, jobID)
+	cur, state, found, e := currentFencingTx(ctx, tx, jobID)
 	if e != nil {
 		return e
+	}
+	if control.JobIsTerminal(state) {
+		return domain.Errorf(domain.ErrConflict,
+			fmt.Sprintf("job %s: 已终态 %s，写入/续租一律被拒", jobID, state))
 	}
 	if !found {
 		return domain.Errorf(domain.ErrConflict, fmt.Sprintf("job %s: 当代无活跃 Attempt", jobID))
