@@ -1,0 +1,122 @@
+/* 设计 Token（UI 文档 D1）——暖纸墨底 + 克制主色 + 静默语义色；亮/暗两套 CSS 变量。
+   组件只引用 Token，不写死颜色/间距/圆角（D2.0 通则「只用 Token」）。换肤/暗色/品牌只改此文件。 */
+
+:root {
+  /* 颜色 */
+  --bg-canvas: #f7f4ef;
+  --bg-surface: #fffdf9;
+  --bg-sunken: #efeae1;
+  --border-subtle: #e5ded2;
+  --border-strong: #d4c9b6;
+  --ink-1: #2a2622;
+  --ink-2: #6b645a;
+  --ink-3: #9a9183;
+  --accent: #c96442;
+  --accent-weak: #f0d9cf;
+  --ok: #5f7a5a;
+  --ok-bg: #e6ece2;
+  --warn: #b07d2b;
+  --warn-bg: #f3e9d4;
+  --danger: #a4493d;
+  --danger-bg: #f1dcd7;
+  --info: #4a6b82;
+  --info-bg: #dde8ee;
+  --unknown: #7a7268;
+  --unknown-bg: #e8e3da; /* 不确定性，一等公民 */
+
+  /* 尺寸比例（8pt 网格） */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-8: 48px;
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --shadow-1: 0 1px 2px rgba(42, 38, 34, 0.05);
+  --shadow-2: 0 2px 8px rgba(42, 38, 34, 0.07);
+
+  /* 字体 */
+  --font-ui: "Inter", system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", monospace;
+  --font-read: "Newsreader", Georgia, serif;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 20px;
+  --fs-2xl: 28px;
+  --lh-tight: 1.4;
+  --lh-normal: 1.6;
+
+  /* 动效 */
+  --ease: cubic-bezier(0.2, 0, 0.2, 1);
+  --dur-1: 120ms;
+  --dur-2: 180ms;
+  --dur-3: 240ms;
+
+  /* 层级 */
+  --z-drawer: 40;
+  --z-modal: 50;
+  --z-toast: 60;
+  --z-tooltip: 70;
+
+  /* 组件尺寸三档（D2.0）：sm 28 / md 34（默认）/ lg 40 */
+  --ctl-h-sm: 28px;
+  --ctl-h-md: 34px;
+  --ctl-h-lg: 40px;
+}
+
+/* 暗色用暖黑（非纯黑），24h 盯屏友好（D1）。 */
+:root[data-theme="dark"] {
+  --bg-canvas: #1c1a17;
+  --bg-surface: #252320;
+  --bg-sunken: #16140f;
+  --border-subtle: #33302b;
+  --border-strong: #46423b;
+  --ink-1: #ece6dc;
+  --ink-2: #b3a99a;
+  --ink-3: #7c7465;
+  --accent: #e07a56;
+  --accent-weak: #3a2a22;
+  --ok: #8fae89;
+  --ok-bg: #232a22;
+  --warn: #d4a64a;
+  --warn-bg: #2d2616;
+  --danger: #d08077;
+  --danger-bg: #2e1f1c;
+  --info: #7ea6c0;
+  --info-bg: #1b262d;
+  --unknown: #9a9183;
+  --unknown-bg: #26231f;
+}
+
+/* 极简基座（非 UI 库，仅让预览/组件有一致底座） */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-canvas);
+  color: var(--ink-1);
+  font-family: var(--font-ui);
+  font-size: var(--fs-md);
+  line-height: var(--lh-normal);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 统一焦点环（D2.0）：只在 :focus-visible 显示。 */
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 4px var(--accent);
+}
+
+code,
+.mono {
+  font-family: var(--font-mono);
+}
