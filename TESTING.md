@@ -426,6 +426,17 @@
 - 关联 bug: 无
 - 备注: 实现质量高：MAX+1 发号依赖 attempts 追加式（注释明确单调性前提）；ExpireLeases 只收 CLAIMED 干净场景、RUNNING 有意留给 Day 12（范围切割正确）；UNIQUE(job_id,generation) 末端兜底在 0001 已建；AttemptState 三个取值按 §43.8 实现期细化原则落地
 
+### T-037  [PASS]
+- 时间戳: 2026-11-17T04:08:00Z
+- 对应: Day 09 审计修复复测（9c2b285，Q-17，定时监控触发） / 里程碑 M1
+- 测试项: Q-17 fail-closed 存活性守卫复测：终态 Job 当代令牌三路（Check/Write/Renew）全拒
+- 命令: 临时探针（zz_rt_test.go，已删）`go test -tags sqlite_modernc -run TestRetestQ17 -v` + 全套件
+- 预期: 终态 Job fencing 全拒；套件全绿
+- 实际: 探针 PASS（CANCELLED Job 当代令牌 CheckFencing/WriteAttemptResult/Renew 三路 ErrConflict）；9 包全绿；scheduler 真库 4/4（含开发方新增 TestFencingRejectsTerminalJob）
+- 结果: PASS
+- 关联 bug: 无
+- 备注: Q-17 关闭——开发方未等 Day 17 直接以 fail-closed 方式处置（守卫叠加存活性），比留跟踪项更稳。Day 09 审计零未决项
+
 ---
 
 ## 代码质量审计（2026-11-16 首轮，随测试执行，Owner 指令新增）
@@ -450,7 +461,7 @@
 | Q-14 | info | internal/store/writer.go `checkpoint()`、reader.go DSN | checkpoint 忽略 TRUNCATE 结果（读者忙时返回 busy 属正常，best-effort 可接受）；reader 的 query_only 连接上设 journal_mode(WAL) 是冗余（库已 WAL，只读连接改不了也不需要）——无害，知悉即可 | 保持现状可接受；后续若做 checkpoint 可观测再加日志。**复测（T-028）：已处置**——checkpoint best-effort 注释化；reader DSN 去掉冗余 journal_mode |
 | Q-15 | 中 | internal/control/states.yaml × spec §5.1/§9.7 | **迁移表缺 spec 规定的转移（T-030 行为级证实 6 项）**：① pause 仅 RUNNING 可入 PAUSING，§9.7 要求所有非终态（QUEUED/BLOCKED/RESUMING 等 9 态实测被拒）——用户暂停排队中的 Run 会被 ErrInvalid 拒绝；② BLOCKED→PARTIAL 缺失，§5.1 L1348 明文审批期到期允许 PARTIAL/STOPPING/FAILED；③ **EXITING→RUNNING 缺失（无对应事件）**，§5.1 L1336 门禁发现新工作须回 RUNNING——缺它则退出门禁循环断裂，EXITING 误成准终态；④ RUNNING→COMPLETED 直达口径待与 spec 确认（L1351）。属性测试检不出：它只验证实现符合 states.yaml，不验证表符合 spec | states.yaml 补转移行（pause 扩 from 列表、加 partial 的 BLOCKED 来源、加 exit_reopen: EXITING→RUNNING 事件）→ `go generate` → 补 TestKeyTransitions 锚点。趁 controller 调用方尚未依赖「拒绝」行为时改最便宜；③是功能缺口，①②是用户可感行为偏差。**复测（T-031）：已修复关闭**——68e8f27 迁移 34→45：pause 扩至 9 非终态（STOPPING 报备排除：stop 不可逆）、BLOCKED/RUNNING→PARTIAL、reopen: EXITING→RUNNING；④ 采纳「EXITING 单路径 + controller 原子性」解读（图示本为单路径，成立） |
 | Q-16 | 低 | internal/control/job_states.yaml WAITING_APPROVAL | 审批**被拒或过期**后 Job 的出口未定义：SM 只有 approve→RUNNING 一条出边，DENIED/EXPIRED 的审批对应 Job 只能靠用户 cancel 或 fail 终结。spec 侧也空白（只有 L3085 deny API 端点，无 Job 去向语义）——审批流 Day 15/17 要用 | Day 15 前补：SM 加 denied: WAITING_APPROVAL→CANCELLED（cancel_code=PLANNER_SUPERSEDED 或专用码）与 expired 边，或 spec 侧先定义语义；属 spec 空白而非实现违规。**复测（T-034）：已处置关闭（被拒半边）**——4941a04 加 deny: WAITING_APPROVAL→RUNNING，理由成立（被动等待态不自行终结、去留由规划器重排，不把争议语义冻进 SM）；**过期半边有意留白到 Day 15**（耦合 Policy Engine，且 cancel/fail 恒为安全出口无活性缺陷），届时随 Day 15 验收 |
-| Q-17 | info | internal/scheduler/claim.go guardFencingTx | fencing 守卫只校验「令牌=当代」，不查 Job 状态：CANCELLED/FAILED 等终态 Job 的当代令牌仍能通过 CheckFencing/WriteAttemptResult/Renew（T-036 P4 实测确认）。当前无实际危害（终态 Job 无后续写路径）；Day 17 Permit 发放、Day 18 Proxy 校验若复用 guardFencingTx 判「可写」，会放行已终态 Job 的请求 | Day 17 设计 Permit 校验时叠加 Job 存活性（state 非终态）检查；或在 guardFencingTx 加可选参数。届时随 Day 17 验收 |
+| Q-17 | info | internal/scheduler/claim.go guardFencingTx | fencing 守卫只校验「令牌=当代」，不查 Job 状态：CANCELLED/FAILED 等终态 Job 的当代令牌仍能通过 CheckFencing/WriteAttemptResult/Renew（T-036 P4 实测确认）。当前无实际危害（终态 Job 无后续写路径）；Day 17 Permit 发放、Day 18 Proxy 校验若复用 guardFencingTx 判「可写」，会放行已终态 Job 的请求 | Day 17 设计 Permit 校验时叠加 Job 存活性（state 非终态）检查；或在 guardFencingTx 加可选参数。届时随 Day 17 验收。**复测（T-037）：已修复关闭（提前处置）**——9c2b285 guardFencingTx fail-closed 叠加存活性：终态 Job 令牌匹配也拒写，三路（Check/Write/Renew）实测全拒 |
 
 **做得好的（保持）**：迁移器版本记录与 DDL 同事务（原子）；建表按依赖序 + Down 严格逆序；Day 02 复合外键设计纯净（无冗余单列 FK）；全部查询参数化；t.TempDir/t.Cleanup 测试卫生；PRAGMA 走 DSN（per-connection，不踩连接池坑）；注释全程带 spec 引用可回溯；BUG-001 教训已固化进 .gitignore 注释。
 
