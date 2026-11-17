@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"pentagent/internal/domain"
+	"pentagent/internal/faultinject"
 	"pentagent/internal/store"
 )
 
@@ -306,6 +307,11 @@ func (e *Executor) Step(ctx context.Context, spec StepSpec, gen Generator, now t
 	}
 	if err = e.CommitModelResponse(ctx, step, resp, now); err != nil {
 		return StepResult{ModelStepID: step.ModelStepID}, err
+	}
+	// 故障注入点 after_model_response_commit（§22.3）：模型响应已持久化、效果未提交。
+	// 武装此点模拟崩溃——恢复时对同一 model_step 调 CommitEffects 续提交，幂等不重复。
+	if err = faultinject.Hook(faultinject.AfterModelResponseCommit); err != nil {
+		return StepResult{ModelStepID: step.ModelStepID, Kind: resp.Kind}, err
 	}
 	if err = e.CheckFresh(ctx, step); err != nil {
 		_ = e.MarkStale(ctx, step.ModelStepID, now)

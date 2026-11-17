@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"pentagent/internal/domain"
+	"pentagent/internal/faultinject"
 	"pentagent/internal/store"
 )
 
@@ -134,11 +135,17 @@ func (g *ExitGate) evalTx(ctx context.Context, tx *sql.Tx, runID string) (GateRe
 //
 // 冻结与「重读+评估+CAS」分两段事务：单写者串行保证两段之间其它写者若推进了修订，第 2 段能检出并放弃。
 func (g *ExitGate) TryComplete(ctx context.Context, runID string, now time.Time) (CompleteResult, error) {
-	// 第 1 段：冻结到 EXITING，拿冻结后基线。
+	// 第 1 段：冻结到 EXITING，拿冻结后基线。若 Run 已在 EXITING（如上次 after_exit_gate_pass 崩溃
+	// 后留下的可恢复态），则跳过 freeze、直接以当前修订为基线续评估——使 TryComplete 对崩溃恢复幂等。
 	var baseRunRev, baseSnapRev, baseSurfRev int64
 	err := g.w.Durable(ctx, func(tx *sql.Tx) error {
 		cur, rev, e := readRunStateRev(ctx, tx, runID)
 		if e != nil {
+			return e
+		}
+		if cur == domain.RunExiting {
+			baseRunRev = rev
+			baseSnapRev, baseSurfRev, e = readSnapSurf(ctx, tx, runID)
 			return e
 		}
 		to, ok := Next(cur, EventExit)
@@ -198,6 +205,11 @@ func (g *ExitGate) TryComplete(ctx context.Context, runID string, now time.Time)
 				AbortInfo: fmt.Sprintf("revision drift: snap %d→%d surf %d→%d run %d→%d",
 					baseSnapRev, snap, baseSurfRev, surf, baseRunRev, rev)}
 			return nil
+		}
+		// 故障注入点 after_exit_gate_pass（§22.3）：门禁通过、终态写入前。武装此点模拟崩溃——
+		// 整个事务回滚，不写终态，Run 留 EXITING（可恢复重评），绝不留下「半完成」。
+		if e := faultinject.Hook(faultinject.AfterExitGatePass); e != nil {
+			return e
 		}
 		// 3) 全过且无漂移：EXITING→COMPLETED，同一事务、CAS（WHERE run.revision=冻结基线）。
 		done, _ := Next(domain.RunExiting, EventComplete)
