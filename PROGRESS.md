@@ -11,14 +11,13 @@
 
 ## 当前位置
 
-**Day 13 —— CLI 骨架 + Pause/Resume/Stop + 故障注入 Hook ✅（已提交 `2edbb40`）——🎉 M1 全部 13 天完成**
-下一步：**Day 14（dev-plan/day-14.md，进入 M2）**，等待 Owner 批准后开始。
+**Day 14 —— Action 状态机 + ActionProposal ✅（已提交 `3af1c1d`）——M2 开端**
+下一步：**Day 15（dev-plan/day-15.md，Policy Engine PDP）**，等待 Owner 批准后开始。
 
-Claude 开发前自检：`TESTING.md` 顶部「未解决 bug」= 无（Day 12 已测 T-042/T-043，零新发现）。
-✅ Day 13 已验证：`go test -race -tags sqlite_modernc ./cmd/pentagent/... ./internal/api/... ./internal/faultinject/...` 全绿——
-CLI create→start→status(RUNNING)→pause --mode now→resume→stop 全走通；对终态 Run start 返稳定错误码；
-故障注入令生命周期调用模拟崩溃、解除后恢复；API 404/错误码映射（§17/§9.7/§22.3）。
-**M1 控制核心收口**：单写者 Store→Run/Job 状态机→Claim/Lease/Fencing→Event/Outbox→幂等账本→启动恢复→CLI/API。
+Claude 开发前自检：`TESTING.md` 顶部「未解决 bug」= 无（Day 13 已测 T-044/T-045，M1 里程碑全部验收，零新发现）。
+✅ Day 14 已验证：`go test ./internal/execution/...` 全绿——Action 9 态/3 终态/14 迁移逐条；
+**DISPATCHED 后崩溃→OUTCOME_UNKNOWN（故障注入演示，不自动成功/失败/重试，§5.3）**、DISPATCHED 不可直接
+record/cancel；canonical_digest 字段顺序无关（JCS）；幂等类重发判定（非幂等未对账禁重发，§4.1）；rapid 属性测试。
 
 ---
 
@@ -39,7 +38,7 @@ CLI create→start→status(RUNNING)→pause --mode now→resume→stop 全走�
 | 11 | M1 | commands/operations 幂等账本 | ✅已完成 | `aa12f99` | 2026-11-17 | internal/control/commands.go：Receive(查重→fn→记账,同事务)同key返回原对象/并发只建一个/fn失败回滚重执行；GuardRevision(expected_revision);异步operation CreateTx/Transition/GetOperation；只存digest不存请求体；schema就绪无需迁移；-race全绿 |
 | 12 | M1 | Reconciler + 每阻塞态超时 | ✅已完成 | `c0c2b34` | 2026-11-17 | internal/control/reconciler.go：§19启动恢复(孤儿Attempt→EXPIRED/DISPATCHED→OUTCOME_UNKNOWN/Job→RECONCILING或重新上架/增代失效旧fencing/补发Outbox,单事务幂等)+SweepTimeouts(RECONCILING超时)；cmd/pentagentd接入先恢复后开调度；未建组件按§19次序占位(Day13/15/17)；-race全绿 |
 | 13 | M1 | CLI 骨架 + Pause/Resume/Stop + 故障注入 Hook | ✅已完成 | `2edbb40` | 2026-11-17 | internal/api(最小REST,Run生命周期路由+错误码映射+故障注入Hook)/faultinject(§22.3 Hook注册表,生产禁用)/cmd/pentagent(标准库flag CLI只调API,pause两档)；control加CreateRun/EnsureWorkspace；CLI全生命周期走通+注入崩溃；**M1收尾**；-race全绿。有据偏离:无网络改标准库flag替Cobra |
-| 14 | M2 | Action 状态机 + ActionProposal | ⬜未开始 |  |  |  |
+| 14 | M2 | Action 状态机 + ActionProposal | ✅已完成 | `3af1c1d` | 2026-11-17 | internal/execution：action_states.yaml→action_sm.gen.go(9态/14迁移,§5.3)+ActionProposal(canonical_digest=JCS+SHA256,红线锚)+CanRedispatchUnreconciled(§4.1非幂等未对账禁重发)；DISPATCHED崩溃→OUTCOME_UNKNOWN不自动成功；domain加IdempotencyClass常量；生成器幂等 |
 | 15 | M2 | Policy Engine（判定点 PDP） | ⬜未开始 |  |  |  |
 | 16 | M2 | Scope 规范化器 + 差分模糊（红线的地基） | ⬜未开始 |  |  |  |
 | 17 | M2 | 两层 Permit（Action Permit + Request Capability） | ⬜未开始 |  |  |  |
@@ -103,3 +102,4 @@ CLI create→start→status(RUNNING)→pause --mode now→resume→stop 全走�
 - **2026-11-17** — Day 11 完成（提交 `aa12f99`），**「网络超时重试不产生重复对象」保证**：幂等命令账本。新增 internal/control/commands.go，schema 就绪无需迁移。**Receive(actorID, idemKey, reqDigest, fn)**：同一 durable 事务内「查重→执行 fn→记账」——命中 (actor,key) 返回原 resource_refs、Replayed=true、不二次执行 fn；未命中执行 fn 建对象 + 记命令行同事务原子；fn 失败整事务回滚（无命令行无对象）→重试真正重执行。并发同 key 由单写者串行保证只建一个（先到者整事务提交后后到者才查得到），PK(actor_id,idempotency_key) 末端兜底。同 key 不同 digest → ErrConflict（稳定错误）。只存 request_digest 不存原始秘密请求体（§4.2/§1163）。**GuardRevision**（§15.7 expected_revision）：目标 revision 不符→ErrConflict，table 走白名单（jobs/runs）防注入。**异步 operation**：CreateOperationTx（事务内建 ACCEPTED，可在 fn 内调用使建 op+记命令同事务）、Transition（ACCEPTED→RUNNING→SUCCEEDED/FAILED，终态不可再变）、GetOperation（只读池，供 GET /v1/operations/{id}），异步命令幂等重试返回同一 operation_id。验证：-race 全绿（同 key 同对象/fn 一次、16 并发只建一个、digest 复用、expected_revision 冲突、operation 生命周期与终态不可变、fn 失败回滚重执行）。双模全绿，基线仍 1.23。下一步：Day 12。
 - **2026-11-17** — Day 12 完成（提交 `c0c2b34`），**M1 可靠性收口：杀进程能自动恢复**。新增 internal/control/reconciler.go + cmd/pentagentd 接入。**Reconcile（§19 ④⑤⑥⑦）**：本进程为崩溃后新进程→库里任何 RUNNING Attempt 均死进程孤儿；⑥ DISPATCHED 动作→OUTCOME_UNKNOWN（§5.3 不重试/不标成功/不直接失败）；④ 孤儿 Attempt→EXPIRED；⑤ 受影响 Job 增代 + 流转（RUNNING→RECONCILING+对账截止；CLAIMED 认领未执行→READY 重新上架清认领），增代使死进程复活后持旧 fencing_token 写入被拒（job.generation 前移、当代无 Attempt→guardFencingTx found=false）；⑦ 补发崩溃前未发布 Outbox。④⑤⑥ 单事务原子、幂等（无孤儿全零）。**SweepTimeouts（§5.0.5）**：RECONCILING 超时→OUTCOME_UNRESOLVED 终态（复用 Day 08），无阻塞态永久卡死。**有据占位**（组件未建、按 §19 次序显式留位不假装完成）：②全局 Pause、③Permit=Day17、Session=Day13、WAITING_APPROVAL=Day15、Proxy/Strategist=相应日；Attempt 租约 periodic 扫描在 scheduler（反向依赖 control，不在此调用避免循环依赖，cmd 层与 Scheduler 一并启动）。**cmd/pentagentd**：开库迁移→Reconcile→打印汇总→占位「调度/API 后续接入」，先恢复后开调度最后接新动作的次序由调用顺序保证。验证：-race 全绿（DISPATCHED 崩溃→OUTCOME_UNKNOWN/RECONCILING/EXPIRED/增代不重执行、CLAIMED 孤儿重新上架、Outbox 补发、干净启动幂等、RECONCILING 超时终态）。双模全绿，基线仍 1.23。下一步：Day 13（M1 收尾）。
 - **2026-11-17** — Day 13 完成（提交 `2edbb40`），**🎉 M1 全部 13 天收尾**：CLI 骨架 + Run 生命周期 API + 故障注入 Hook。新增 internal/faultinject/、internal/api/、cmd/pentagent/（重写），control 加 CreateRun/EnsureWorkspace。**internal/api**（最小 REST）：POST /v1/runs、GET .../status、POST .../{start,pause,resume,stop}；多步迁移翻译（start=preflight→start、pause=pause→pause_drained 等）；领域错误映射稳定 HTTP 码（NotFound→404、Invalid/Conflict→409）；status 走只读池、迁移走 Controller；生命周期路径挂 §22.3 故障注入 Hook。**cmd/pentagent**（CLI）：run create/start/pause/resume/stop/status/watch，只调 API 不碰库（§17）；pause 两档 --mode now|after_current_action（§9.7）；--json 稳定输出；--yes 不代表批准未来危险动作。**有据偏离文档**：dev-plan 建议 Cobra，但本环境网络关闭无法拉取 spf13/cobra 且命令面简单，改用标准库 flag + 子命令分发、零外部依赖，保留 run <action> 命令形日后可平滑替换。**internal/faultinject**（§22.3）：Hook(name) 生产默认禁用=零注入；测试 Arm/ArmOnce/Disarm 武装注入点模拟崩溃；登记 §22.3 Hook 点清单供各模块后续挂上。验证：-race 全绿（CLI create→start→status(RUNNING)→pause --mode now→resume→stop 全走通、终态 start 稳定错误码、注入崩溃与解除恢复、API 404/错误码映射）。双模全绿，基线仍 1.23。**M1 控制核心全部完成**：单写者 Store(06)→Run SM(07)→Job SM/RECONCILING(08)→Claim/Lease/Fencing(09)→Event/Outbox(10)→幂等账本(11)→启动恢复(12)→CLI/API(13)。下一步：Day 14 进入 M2（Action 状态机 + 策略/Permit/Proxy/Sandbox/Evidence 安全核心）。
+- **2026-11-17** — Day 14 完成（提交 `3af1c1d`），**M2 开端**：Action 状态机 + ActionProposal。新增 internal/execution/，domain 补 IdempotencyClass 常量。Action 是「真正影响外部的动作」载体，Permit/Proxy/Evidence 都绕它。**状态机**（action_states.yaml→action_sm.gen.go，9 态/3 终态/14 迁移，同 Day 07 代码生成套路）：正常链 PROPOSED→AUTHORIZED→DISPATCHED→EXECUTED→RECORDED；红线 PROPOSED→WAITING_APPROVAL→AUTHORIZED/POLICY_DENIED。**§5.3 核心恢复规则**：DISPATCHED 后崩溃/未确认→OUTCOME_UNKNOWN（不自动失败/重试/成功），对账后→RECORDED 或 CANCELLED；取消只从未派发态（DISPATCHED 不可直接取消须经对账，与 Job RECONCILING 同构）；失败非独立终态走 EXECUTED(failure_class)→RECORDED。**ActionProposal**：CanonicalDigest=canon JCS(RFC8785)+SHA-256（红线/审批/去重/三方一致锚，同语义动作字段顺序无关得同摘要）；NewProposedAction 构造+填 digest+identity 必填校验；CanRedispatchUnreconciled（§4.1/§967）非幂等未对账禁重发、只读/幂等可重试（幂等须沿用目标侧 key）、未知按最保守。**代码生成**：execution 单机生成器 gen.go 沿用 control 多机版的完整迁移表+显式拒绝模式，注明将来可抽共享 internal/smgen。验证：go test ./internal/execution/... 全绿——逐迁移、DISPATCHED 崩溃→OUTCOME_UNKNOWN（故障注入演示不自动成功）、DISPATCHED 不可直接 record/cancel、幂等类重发判定、digest 顺序无关、rapid 属性测试。全仓双模+生成器幂等，基线仍 1.23。下一步：Day 15（Policy Engine PDP）。
