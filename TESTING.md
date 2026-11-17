@@ -691,6 +691,16 @@
 
 **Day 38-44 批次验收结论：全部通过。M5（报告+Exit Gate）、M6（Web UI P0 全链路页面+SSE 一致性+命令幂等）、M7 开端（故障注入+策略绕过套件）完成。Q-18 闭环；新增 Q-25（UI 依赖可复现性）；Q-23 维持开放（开发方已跟踪）。**
 
+### T-063  [记录]（Owner UI 验收反馈录入 + 根因诊断）
+- 时间戳: 2026-11-17T16:16:00Z
+- 对应: M6 P0 预览验收（Owner 本机查看 http://127.0.0.1:4173 PagesDemo） / M6
+- 测试项: Owner 反馈两条——①字体发虚模糊 ②Toast 不好看；测试方根因诊断后按 Owner 指示录入需求文档
+- 命令: CSS/产物诊断（tokens.css L110 / font 栈 / dist 字体文件检查）
+- 实际: 已追加 `docs/pentagent-ui-spec-v1.6.md` §16.35「Owner 验收反馈」：①**元凶定位**——`-webkit-font-smoothing: antialiased` 在 Windows Chrome 禁用子像素渲染（macOS 惯例误用于跨平台）+ Inter 未打包实际走系统回退（雅黑+antialiased 观感劣化），附修复方向与验收标准；②Toast 深色反转/图标结构/动效收敛三方向，审美项 Owner 一票定稿
+- 结果: 记录在案（非缺陷，属需求打磨）
+- 关联 bug: 无
+- 备注: 预览服务器由测试方后台维持（vite preview :4173），Owner 看完即关。UI 打磨窗口建议放在 daemon 接线前一并处理（改动成本最低）
+
 | 新编号 | 级别 | 内容 |
 |---|---|---|
 | Q-25 | 低 | **UI 依赖在新环境不可直接安装**（T-061 实测）：①pnpm 11 默认 `minimumReleaseAge` 供应链策略拒 pnpm-lock.yaml 内条目（@rollup 等 14 包「发布过新」），需 `--config.minimum-release-age=0` 绕过；②`pnpm.onlyBuiltDependencies` 写在 package.json（pnpm 11 不再读该位置）→ esbuild 构建脚本被拦。开发方环境（旧 pnpm/宽松策略）无感，新克隆按 README 步骤装不上 | ①按官方迁移把 onlyBuiltDependencies 移入 pnpm-workspace.yaml；②README 记最低 pnpm 版本或提供 .npmrc 固定策略；③刷新 lockfile 使与现行 pnpm 兼容 |

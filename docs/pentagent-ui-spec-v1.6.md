@@ -1689,3 +1689,30 @@ observe 下：活动流里这些行为显示为「（观察模式）本会：…
 观察模式开关             Settings→自主行为（D29）         🆕
 ```
 结论：§51–53 的交互点均已有 UI 落点。观察模式同时给了"新自主能力先影子跑"的安全阀。
+
+## 16.35 Owner 验收反馈（2026-11-17，P0 预览后）
+
+> 来源：Owner 在本机（Windows，浏览器预览 apps/web 构建产物）验收 PagesDemo 后的反馈。由测试方诊断定位、Owner 指示录入本规格。处理优先级：daemon 接线前的 UI 打磨窗口一并处理（改动成本最低期）。
+
+### 反馈一：字体发虚、模糊不清
+
+**现象**：整体文字观感发虚，尤其中文小字号。
+
+**测试方诊断（两个根因，按嫌疑排序）**：
+1. `apps/web/src/styles/tokens.css:110` 的 `-webkit-font-smoothing: antialiased`——该属性**在 Windows Chrome 上禁用子像素抗锯齿**（subpixel rendering），普通 DPI 屏上文本变灰发虚；它本是 macOS 惯用默认。这是最可能的元凶。
+2. `--font-ui` 栈首位的 `Inter` **未打包**（dist 产物无字体文件）——实际渲染走系统回退：西文 Segoe UI / 中文 Microsoft YaHei；雅黑在小字号 + antialiased 组合下观感进一步劣化，且中英混排基线/灰度不统一。
+
+**修复方向（dev 定夺具体方案）**：
+- Windows（非 Retina）环境移除 `-webkit-font-smoothing: antialiased`，或仅在 `@media (-webkit-min-device-pixel-ratio: 2)` 下启用；
+- 二选一：打包 Inter（含 latin 子集 + 明确中文回退声明），或干脆改用系统栈 `"Segoe UI", "Microsoft YaHei", system-ui`（零加载成本、Windows 原生清晰）；
+- 验收标准：Owner 本机 100%/150% 缩放下中文小字号（fs-sm）清晰不发灰。
+
+### 反馈二：Toast 观感不佳
+
+**现象**：Toast 弹出样式不好看（当前实现：右下堆叠 + 白底卡片 + 3px 左色条，components.css D2.11）。
+
+**改进方向（供设计定夺）**：
+- 考虑深色反转 Toast（`--ink-1` 底 + 反色文字），与浅色画面对比更强、更聚焦；
+- 结构升级：图标（按 tone）+ 标题 + 正文 + 关闭，替代当前纯文本；
+- 动效：进入用位移+渐显（当前 sn-pop 弹跳感偏玩具），退出渐隐；堆叠间距收紧；
+- 验收标准：Owner 主观认可（本条为审美项，Owner 一票定稿）。
