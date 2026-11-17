@@ -1,0 +1,16 @@
+# pnpm 配置（Q-25 修复）。
+#
+# 背景：pnpm 11 起 .npmrc 只保留 auth/registry，pnpm 专属配置一律移到本文件（或全局 config.yaml）。
+# 测试模型在 pnpm 11 新环境克隆后装不上，根因两条，这里一并修掉：
+#
+# 1) 供应链冷却 minimumReleaseAge：pnpm 11 默认 1440 分钟（发布不满 1 天的版本不解析），
+#    导致锁文件里较新的传递依赖（@rollup/* 等）在新环境被拒。本仓锁文件已钉精确版本，
+#    安全边界由「钉版 + 审阅」保证，故显式关闭冷却以保证**任何时间点可复现安装**。
+minimumReleaseAge: 0
+#
+# 2) 构建脚本白名单：esbuild 的 postinstall 需链接平台二进制（Vite/Vitest 依赖），默认被拦。
+#    pnpm 10 读 onlyBuiltDependencies；pnpm 11 旧键已移除、改读 allowBuilds——两者都写，跨版本兼容。
+onlyBuiltDependencies:
+  - esbuild
+allowBuilds:
+  esbuild: true
