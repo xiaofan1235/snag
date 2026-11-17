@@ -11,11 +11,11 @@
 
 ## 当前位置
 
-**Day 44 —— 故障注入全套 + Policy Bypass Suite ✅（已提交 `090a808`）** —— **🎉 新七天批次（Day 38–44）全部完成 · M7 加固开端：敢说它安全的前提**。
-下一步：**Day 45（dev-plan/day-45.md，待下一批次）**。
-✅ Day 44 已验证：`go build/vet/gofmt`、全量默认测试、`-tags sqlite_modernc` 全量、`-race` 触达包、`GOOS=windows build` 全 exit 0。
-**接线关键 Hook 到真实路径**（§22.3 本应随实现落地，补齐）：executor 的 after_model_response_commit + exit_gate 的 after_exit_gate_pass（生产默认禁用零注入）。**故障注入套件**（tests/faultinjection）：after_model_response_commit 崩溃→恢复续提交效果幂等不重复；after_exit_gate_pass 崩溃→不写终态留 EXITING 可恢复（TryComplete 改为对 EXITING 幂等重入）绝不半完成。**策略绕过套件**（tests/policybypass）：越域 Redirect/字面私网/非默认端口/userinfo 冒充/IPv6/编码域名 fail-closed/WebSocket scheme/浏览器新窗口重查/Proxy 失效熔断 Kill Switch + 伪造 Evidence ID/释义冒充/跨 Run 引用/Agent 自报升 REPORTABLE/未验证实验改 Coverage 全部被拦。
-**偏离/接线（文档化）**：§22.4 其余集成项（Permit 重放/过期 Attempt/多 Worker 抢配额/摘要复用 Approval/收窄在途/沙箱 PARTIAL）在对应包已有执法与单测，端到端接线随 daemon，套件内已注记位置。
+**Day 45 —— 浸泡 Soak + 资源泄漏 + Secret Canary ✅（已提交 `5c43ee5`）** —— **长时稳定性是立身之本**。
+下一步：**Day 46（dev-plan/day-46.md，报告证据审计 + 验收清单，收官）**。
+✅ Day 45 已验证：`go build/vet/gofmt`、`-tags sqlite_modernc` soak、`-race` soak、`GOOS=windows build` 全 exit 0。
+tests/soak 浸泡驱动（随机故障注入 + 持续负载，规模可由 `SNAG_SOAK_ITERS`/`SNAG_SOAK_SECONDS` 放大到 12–24h 长跑）。**门槛是不变量断言（任一违反即失败），非跑够时长即过**——§22.6 覆盖：越域/直连全拦、副作用零重复（随机崩溃注入+恢复续提交）、无未完成冒充 COMPLETED、Secret Canary 脱敏后零泄漏、**UNKNOWN 预算预留结算率 100%**（预留→IN_FLIGHT→(SUCCEEDED/UNKNOWN)→SETTLED 随机路径跑完零悬挂）、Core 崩溃后自动恢复、SSE 补发序号无空洞、内存 warm-up 后堆不失控增长（短跑宽门+记录，ITERS≥5 万收紧到 §22.6 的 <10%）。实测 2000 轮堆 -3.6%（无泄漏）、结算 2000/2000。
+**偏离（文档化）**：12–24h 正式长跑在 CI 外执行（`go test -timeout 24h` + 大 ITERS）；本环境以默认 200 轮 + 2000 轮验证不变量与可扩展性，门槛逻辑一致。
 
 ---
 
@@ -101,7 +101,7 @@
 | 42 | M6 | UI：Finding + Evidence + Approval + Coverage | ✅已完成 | `30b2280` | 2026-11-17 | apps/web/src/features：findings/FindingDetail（§16.7 事实区/推断区视觉分开+点击事实→右栏 CEBS 字节高亮 §3.4+baseline/variant diff+请求重放走命令非前端直发）+ approvals/ApprovalCenter（§16.10 动作 Diff 正常→待审批+身份/对象/副作用/策略原因/过期；Approve Once 带 revision+ActionDigest/Deny/Deny and Cancel Related；不批量批准高风险）+ coverage/CoverageMatrix（§16.8 接口×攻击类型矩阵+身份过滤+5 态+单元格下钻 Action+Evidence+未测原因+SurfaceRevision）+ Evidence 复用 Day 40 EvidenceViewer。99 Vitest 用例全绿。偏离同 Day 41（e2e→Vitest 覆盖） |
 | 43 | M6 | UI：Report + 恢复预览 + 命令幂等/Resync（P0 收尾） | ✅已完成 | `afd7333` | 2026-11-17 | apps/web/src/features：report/ReportCenter（§16.22 阅读气质+只纳入 Reportable+被排除项单列及原因+导出 Markdown/JSON+STALE 禁导出+绑定 ExitGate/Coverage/PartialReasons）+ runs/RecoveryPreview（§16.12 未完成 Job/OUTCOME_UNKNOWN/过期身份/失效代理/策略版本/Schema 兼容，Schema 不兼容阻断）+ commands/idempotency.ts CommandRunner（§16.33 202+operation_id→轮询终态+重试复用同一 Idempotency-Key 不生成第二份+REJECTED→FAILED+不 optimistic）+ CommandButton（幂等键+二次确认+结果跳转）+ components/ConnectionStatus（LIVE/RECONNECTING/STALE/RESYNCING，UI 断线≠Run 停止）。115 Vitest 用例全绿。**M6 Web UI P0 收口**。偏离同前（e2e→Vitest 覆盖） |
 | 44 | M7 | 故障注入全套 + Policy Bypass Suite | ✅已完成 | `090a808` | 2026-11-17 | 接线关键 Hook 到真实路径（executor after_model_response_commit + exit_gate after_exit_gate_pass，生产禁用零注入）+ TryComplete 对 EXITING 幂等重入（崩溃恢复）+ tests/faultinjection（after_model_response_commit 崩溃→恢复续提交幂等不重复；after_exit_gate_pass 崩溃→留 EXITING 不半完成）+ tests/policybypass（§22.4：越域 Redirect/字面私网/非默认端口/userinfo/IPv6/编码域名/WebSocket scheme/浏览器新窗口/Proxy 熔断 + 伪造 EvidenceID/释义/跨 Run/Agent 自报升 REPORTABLE/未验证改 Coverage 全拦）。双模+-race+windows 全绿。**M7 开端** |
-| 45 | M7 | 浸泡 Soak + 资源泄漏 + Secret Canary | ⬜未开始 |  |  |  |
+| 45 | M7 | 浸泡 Soak + 资源泄漏 + Secret Canary | ✅已完成 | `5c43ee5` | 2026-11-17 | tests/soak 浸泡驱动（随机故障注入+持续负载，SNAG_SOAK_ITERS/SECONDS 可放大长跑）：§22.6 不变量断言——越域/直连全拦、副作用零重复（崩溃注入+恢复续提交）、无未完成冒充 COMPLETED、Secret Canary 脱敏零泄漏、UNKNOWN 预算结算率 100%（RESERVED→IN_FLIGHT→UNKNOWN/SUCCEEDED→SETTLED 零悬挂）、崩溃自动恢复、SSE 序号无空洞、内存堆不失控（短跑宽门、ITERS≥5万收紧 <10%）。2000 轮堆 -3.6% 无泄漏、结算 2000/2000。-race+windows 全绿 |
 | 46 | M7 | 报告证据审计 + 验收清单（可连续自主运行版本） | ⬜未开始 |  |  |  |
 
 ---
@@ -192,3 +192,5 @@
 **前端测试**：apps/web 累计 19 文件 115 Vitest 用例，`pnpm typecheck`+`pnpm build` 全绿。
 **后端测试**：全仓双模（默认 + sqlite_modernc）+ `-race` + `GOOS=windows build` 全 exit 0；新增 migrations/0015、tests/faultinjection、tests/policybypass。
 **偏离均已文档化**（commit + PROGRESS + 代码注释）：Playwright e2e 本环境不可跑→Vitest 覆盖；§22.4 部分集成项随 daemon 接线；部分故障注入 Hook 随子系统落地。
+
+- **2026-11-17** — Day 45 完成（提交 `5c43ee5`），**长时稳定性是立身之本**（§22.6 浸泡测试）。新增 tests/soak 浸泡驱动：随机故障注入 + 持续负载，规模可由 `SNAG_SOAK_ITERS`/`SNAG_SOAK_SECONDS` 放大到 12–24h 长跑（`go test -timeout 24h`）。**核心理念：门槛是不变量断言（任一违反即失败），非跑够时长即过**——短跑与长跑验同一组不变量，长跑只把随机故障覆盖面铺更广。以真实原语进程内驱动并断言 §22.6：①没有越域/直连——随机越域 URL 池（越域/非默认端口/userinfo 冒充/私网直连/云元数据 169.254.169.254/IPv6/WebSocket/编码域名）过 policy.InScope 全拦、授权 URL 必过；②没有重复副作用——约 1/3 迭代在 after_model_response_commit 注入崩溃、恢复续提交，applier 任一 (step,ordinal) 调用恒 1；③没有未完成冒充 COMPLETED——每 20 轮造带非终态 Job 的 Run、Exit Gate 必不完成；④Secret Canary 不进日志/模型输入——含 Canary 的 CEBS 经 evidence.Redact 后 Canary 绝不出现；⑤**UNKNOWN 预算预留结算率 100%**——每轮 Reserve→MarkInFlight→随机 Settle / MarkUnknown+SettleUnknown(billed|released)，跑完断言零非 SETTLED、预留数==结算数；⑥Core 崩溃后自动恢复；⑦SSE 补发序号无空洞；⑧内存门——warm-up 后采 runtime.MemStats，短跑宽门兜泄漏级增长+记录，ITERS≥5 万收紧到 §22.6 的 <10%。实测：默认 200 轮 0.65s、2000 轮 8s；堆 warm→end -0.9%/-3.6%（GC 后反缩，无泄漏）、结算 2000/2000。`go build/vet/gofmt`、`-tags sqlite_modernc` soak、`-race` soak、`GOOS=windows build` 全 exit 0。**偏离（文档化）**：12–24h 正式长跑在 CI 外执行（大 ITERS + 24h timeout），本环境以 200/2000 轮验证不变量与可扩展性、门槛逻辑一致。下一步：Day 46（报告证据审计 + 验收清单，收官，dev-plan/day-46.md）。
