@@ -1,0 +1,219 @@
+/* shell.css —— 应用外壳三区布局（UI 文档 D3）。只用 Token。 */
+
+.app-shell {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100vh;
+  background: var(--bg-canvas);
+  color: var(--ink-1);
+}
+
+/* 顶：Agent 状态条（一行，平静） */
+.app-statusbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  height: 44px;
+  padding: 0 var(--sp-4);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+  overflow-x: auto;
+}
+.app-statusbar .live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: sn-pulse 1.4s var(--ease) infinite;
+  flex: none;
+}
+.app-statusbar .sep {
+  color: var(--ink-3);
+}
+.app-statusbar .gauge {
+  width: 90px;
+  height: 6px;
+  background: var(--bg-sunken);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.app-statusbar .gauge > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+/* 中部三栏 */
+.app-body {
+  display: grid;
+  grid-template-columns: 200px 1fr 0;
+  min-height: 0;
+}
+.app-body[data-inspector="open"] {
+  grid-template-columns: 200px 1fr 340px;
+}
+
+/* 左导航 */
+.app-nav {
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border-subtle);
+  padding: var(--sp-3) var(--sp-2);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.app-nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-sm);
+  color: var(--ink-2);
+  text-decoration: none;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+.app-nav-item:hover {
+  background: var(--bg-sunken);
+}
+.app-nav-item[data-active="true"] {
+  background: var(--accent-weak);
+  color: var(--accent);
+  font-weight: 600;
+}
+.app-nav-item .nav-icon {
+  width: 18px;
+  text-align: center;
+  flex: none;
+}
+.app-nav-item .nav-badge {
+  margin-left: auto;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: var(--fs-xs);
+  display: grid;
+  place-items: center;
+}
+.app-nav-section {
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: var(--sp-3) var(--sp-3) var(--sp-1);
+}
+
+/* 中内容 */
+.app-main {
+  overflow-y: auto;
+  padding: var(--sp-5);
+  min-width: 0;
+}
+.app-main-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+.app-crumbs {
+  color: var(--ink-3);
+  font-size: var(--fs-sm);
+}
+.app-crumbs a {
+  color: var(--ink-2);
+  text-decoration: none;
+}
+.app-crumbs a:hover {
+  color: var(--accent);
+}
+
+/* 右 Inspector */
+.app-inspector {
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border-subtle);
+  overflow-y: auto;
+  padding: var(--sp-4);
+}
+.app-inspector-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-3);
+}
+
+/* 底：可收起（指令输入 / 连接状态） */
+.app-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  height: 48px;
+  padding: 0 var(--sp-4);
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-subtle);
+}
+.app-footer .cmd {
+  flex: 1;
+}
+
+/* Run 工作台子导航（横向 tabs） */
+.run-subnav {
+  display: flex;
+  gap: var(--sp-1);
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: var(--sp-4);
+  padding-bottom: var(--sp-2);
+}
+.run-subnav a {
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--radius-sm);
+  color: var(--ink-2);
+  text-decoration: none;
+  font-size: var(--fs-sm);
+}
+.run-subnav a:hover {
+  background: var(--bg-sunken);
+}
+.run-subnav a[data-active="true"] {
+  color: var(--accent);
+  border-bottom: 2px solid var(--accent);
+  border-radius: 0;
+}
+
+/* 未实现页空态 */
+.app-placeholder {
+  text-align: center;
+  color: var(--ink-3);
+  padding: var(--sp-8) var(--sp-4);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+}
+
+/* 响应式：中屏收右栏、窄屏折叠左栏为图标 */
+@media (max-width: 1100px) {
+  .app-body[data-inspector="open"] {
+    grid-template-columns: 180px 1fr 0;
+  }
+  .app-inspector {
+    display: none;
+  }
+}
+@media (max-width: 720px) {
+  .app-body,
+  .app-body[data-inspector="open"] {
+    grid-template-columns: 52px 1fr 0;
+  }
+  .app-nav-item .nav-label {
+    display: none;
+  }
+  .app-nav-section {
+    display: none;
+  }
+}
