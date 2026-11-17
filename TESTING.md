@@ -480,6 +480,28 @@
 - 关联 bug: 无
 - 备注: 实现质量高：单事务「查重→fn→记账」+ 单写者串行消除 SELECT-then-act 竞争 + PK 末端兜底；GuardRevision 表名白名单防注入；Transition 终态不可变 + COALESCE 保 refs。零新审计发现（Q-18 之外无新增）
 
+### T-042  [PASS]
+- 时间戳: 2026-11-17T08:15:00Z
+- 对应: Day 12（dev-plan/day-12.md §7，提交 c0c2b34，手动触发） / 里程碑 M1
+- 测试项: Day 12 默认套件 + 真库专项（崩溃现场恢复/孤儿重上架/outbox 补发/幂等/超时扫描）
+- 命令: `go build/vet/test ./... -count=1` + `go test -tags sqlite_modernc ./internal/control/... -v`
+- 预期: 全绿（§7「造崩溃现场→Reconcile→断言状态与顺序」全覆盖）
+- 实际: 11 包全绿；新增 5 个恢复测试全过（TestReconcileDispatchedCrash / TestReconcileClaimedOrphanReoffer / TestReconcileDrainsOutbox / TestReconcileCleanStartIdempotent / TestSweepTimeoutsReconcileExpiry）
+- 结果: PASS
+- 关联 bug: 无
+- 备注: pentagentd main 已按 §19 接线（①开库迁移→Reconcile→之后才 Scheduler/API），次序由调用顺序保证
+
+### T-043  [PASS]
+- 时间戳: 2026-11-17T08:21:00Z
+- 对应: Day 12（僵尸 fencing 探针 + 代码审计） / 里程碑 M1
+- 测试项: §5.3 崩溃语义端到端：造 RUNNING 孤儿现场（含 DISPATCHED 动作+未发 outbox）→ Reconcile → 断言恢复计数、**僵尸旧令牌三路全拒**（增代饿死）、DISPATCHED→OUTCOME_UNKNOWN 三不原则、Job 入 RECONCILING 且 generation+1、二次 Reconcile 幂等全零；reconciler.go + pentagentd 接线审读
+- 命令: 临时探针（internal/control/zz_probe_test.go，已删）`go test -tags sqlite_modernc -run TestProbeZombie -v`
+- 预期: 全部符合 §5.3/§19
+- 实际: PASS——恢复计数精确（1/1/1/1/1）；僵尸 Write/Check/Renew 三路 ErrConflict；动作 OUTCOME_UNKNOWN；generation 前移；幂等复跑全零
+- 结果: PASS
+- 关联 bug: 无
+- 备注: 设计诚实：§19 ②③（全局 Pause、Permit）等未建组件留**显式占位注释**而非假装完成；SweepTimeouts 现只接 RECONCILING 超时，其余阻塞态超时按组件落地日映射（Day 13-17）。零新审计发现
+
 ---
 
 ## 代码质量审计（2026-11-16 首轮，随测试执行，Owner 指令新增）
