@@ -36,7 +36,7 @@
 
 | Bug 编号 | 发现时间 | 对应 Day | 现象 | 严重度 | 状态 |
 |---|---|---|---|---|---|
-| BUG-002 | 2026-11-17T12:00Z | Day 22 | `internal/execution/toolruntime.go:192` 用 `syscall.SysProcAttr{Setpgid: true}`（Unix-only 字段）——**Windows 构建直接失败**（vet: unknown field Setpgid）。Unix 依赖仅此一行（其余 Signal/WaitDelay 跨平台）。开发环境应为 Linux 故未暴露；测试机为 Windows，本地临时去掉该字段后 21 包全部构建+测试通过（证明无其他平台依赖）。进程组收割语义在 Unix 不受影响，仅测试机本地补丁期间行为略有差异 | 中（阻断 Windows 构建/测试；Linux 生产不受影响） | **已修复（`0687407`，待复测）**：拆 build tag——proc_unix.go（//go:build unix 设 Setpgid+SIGTERM）/proc_other.go（//go:build !unix 留空），configureProcGroup 分流；GOOS=windows go build/vet ./... 现 exit 0 |
+| BUG-002 | 2026-11-17T12:00Z | Day 22 | `internal/execution/toolruntime.go:192` 用 `syscall.SysProcAttr{Setpgid: true}`（Unix-only 字段）——**Windows 构建直接失败**（vet: unknown field Setpgid）。Unix 依赖仅此一行（其余 Signal/WaitDelay 跨平台）。开发环境应为 Linux 故未暴露；测试机为 Windows，本地临时去掉该字段后 21 包全部构建+测试通过（证明无其他平台依赖）。进程组收割语义在 Unix 不受影响，仅测试机本地补丁期间行为略有差异 | 中（阻断 Windows 构建/测试；Linux 生产不受影响） | **已修复关闭（`0687407`，复测 T-055）**：拆 build tag——proc_unix.go（//go:build unix 设 Setpgid+SIGTERM）/proc_other.go（//go:build !unix 留空）；测试机裸 Windows 原生构建+vet+双模式全套件通过，不再需要本地补丁 |
 
 ---
 
@@ -608,6 +608,41 @@
 - 关联 bug: BUG-002（本地补丁绕过后执行，测毕还原）
 - 备注: 本轮方法论修正记录：**"测试名覆盖良好"不能替代行为级验证**——首轮对六天只看了测试名，本轮以独立探针+真库全量补齐。默认模式套件会静默 SKIP 真库用例，批次验收必须双模式都跑
 
+### T-055  [PASS]（Day 24-30 批次 + 修复复测）
+- 时间戳: 2026-11-17T13:35:00Z
+- 对应: Day 24-30 连续七天批次（e5f8483..0ea4138）+ BUG-002/Q-21 修复（0687407），手动触发 / **M3 收口**
+- 测试项: ①BUG-002 复测：测试机**裸 Windows 原生** build+vet（不打本地补丁）；②Q-21 复测：守卫默认方向核验；③双模式全量套件；④七天 §7 全读 + 测试枚举
+- 命令: `go build ./... && go vet ./...`（裸跑）+ `go test [-tags sqlite_modernc] ./... -count=1 -v`
+- 预期: 全绿；修复生效
+- 实际: 裸 Windows 构建+vet 通过（BUG-002 关闭）；egressGuard 默认 true + `WithEgressGuardDisabled()` 显式放宽带书面理由（Q-21 关闭，方向反转正确）；默认模式 23 包 ok；真库模式 **207 测试全过 0 SKIP**（新增 internal/agent 35 测试 + tests/lab 自主推进端到端 + scheduler 评分 8 测试）
+- 结果: PASS
+- 关联 bug: 无
+
+### T-056  [PASS]（Day 26 注入隔离 + Day 24 预算独立探针）
+- 时间戳: 2026-11-17T13:44:00Z
+- 对应: Day 24/26 安全关键不变量独立验证 / M3
+- 测试项: ①注入隔离：带 nonce 的恶意载荷（指令覆盖/伪造 JobSpec 标题/伪造 source 标记/prompt smuggling 标签）注入 Untrusted → 指令区（StablePrefix+InstructionBody）与干净构建**字节级相同**、nonce 零泄漏、载荷完整保留数据区；②预算：20 goroutine 并发预留对 80u 普通额度（每预留 worst 10u）→ 恰 8 成功 12 拒；finalization 通道 20u → 2 成功第 3 拒（总额度保护）；③伪标记未中和观察
+- 命令: 临时探针（internal/agent/zz_probe_test.go，已删）`go test -tags sqlite_modernc -run TestProbe -v`
+- 实际: 全部通过。①的指令区完整性是 §46 的立身之本——实测字节级不可撼动；②的并发边界与守恒精确
+- 结果: PASS
+- 关联 bug: 无（Q-24 观察项）
+- 备注: 探针初版关键词"伪造"误报（固定指令区安全措辞本身含该词），改用唯一 nonce 后通过——教训：注入探针的判定标记必须用不可能自然出现的 nonce
+
+### T-057  [PASS]（Day 25/29 安全闸门代码审读）
+- 时间戳: 2026-11-17T13:48:00Z
+- 对应: Day 25 Executor / Day 29 PlanCompiler / M3
+- 测试项: PlanCompiler 同事务 CAS（L207 `UPDATE runs SET current_snapshot_revision=+1 WHERE ...=?`——过期 Snapshot 0 行+dirty）、patch 幂等（INSERT OR IGNORE patch_id）；Executor StepContext 冻结语义（Generate 前持久化快照/STALE 整体失效/(model_step_id,ordinal) 效果幂等键）
+- 命令: 源码审读 + 对应枚举测试核对（TestCompileStaleSnapshotRejectedAndDirty / TestEffectIdempotentCrashRecovery / TestStaleResponseInvalidated 全过）
+- 实际: 实现与声明一致
+- 结果: PASS
+- 关联 bug: 无
+
+**Day 24-30 批次验收结论：全部通过。M3（Day 23-30）里程碑完成：预算账本、Executor Loop、Context Builder（不可信隔离）、两阶段压缩、Strategist、PlanCompiler CAS、Scheduler 评分调度、自主推进端到端。新增 Q-24（低）。**
+
+| 新编号 | 级别 | 内容 |
+|---|---|---|
+| Q-24 | 低 | **数据区定界符未中和**（T-056 ③ 实测）：Untrusted/Retrieved 内容原样写入数据区，内容中伪造的 `--- [source=skill untrusted] ... ---` 标记与 `## 指令标题` 原样保留——指令区完整性不受影响（结构隔离靠拼接顺序，字节级验证过），但模型读到数据区时可能被内容内伪造标记诱导重分区（§46.5 二阶注入面） | 对不可信内容做定界符中和：行首 `--- [source=` 与 `## ` 模式转义（如替换为 `~~[source=` / `＃＃ `）；Day 26 补丁式修复即可，不影响 digest 契约（request_digest 对渲染后整体取值） |
+
 ### T-054  [PASS]（全量代码审计，Owner 指令）
 - 时间戳: 2026-11-17T12:31:00Z
 - 对应: Day 01-23 全仓审计（112 个 Go 文件 / 9148 行非测试代码） / 全里程碑
@@ -650,7 +685,7 @@
 | Q-18 | info | internal/outbox（设计语义，非缺陷） | outbox 为**至少一次**投递：bus.Publish 成功但 markPublished 前崩溃 → 重启后重投（WHERE published=0 守卫决定）；多实例 Publisher 也会重复投递。代码注释已声明该语义 | Day 40 SSE 接入时消费者按 event id / sequence 去重（SSE 客户端 event id 已有全局序可用）；单实例部署假设写入运维约定。届时随 Day 40 验收 |
 | Q-19 | 低 | internal/policy/identities.go checkIdentity | **空租户 fail-open**（T-049 ⑩ 实测）：策略设置 `identities.allowed_tenants=[tenant-a]` 时，`Tenant=""` 的请求放行——租户限制只对携带租户的请求生效。若租户是硬边界（跨租户对象=IDOR 高危场景），无租户请求应拒或显式区分「不适用」 | Day 16/18 身份→租户接入时收口：PolicyInput.Tenant 由 Identity 注册表填充后此口子自然闭合；建议 PDP 在 AllowedTenants 非空且 Tenant 为空时改判 deny 或标注语义。spec §9.2 租户语义待澄清 |
 | Q-20 | info | internal/policy/methods.go checkScope × 未来 Day 16/18 | **parser differential 前瞻**：PDP 用 Go net/url 解析 CanonicalURL；Day 16 规范化器与 Day 18 Policy Proxy 若用不同 URL 解析栈（或不同规范化规则），可能出现「PDP 判 A 放行、Proxy 按解析 B 转发到 C」的绕过。代码已声明「只接收已规范化 URL」，但一致性未验证 | Day 16 验收时核对：规范化器输出的 CanonicalURL 经 PDP 的 url.Parse 再解析必须幂等（host/scheme/port 三元组不变）；Day 18 Proxy 与 PDP 同源解析。记入两天验收清单。**复测（T-052）：已验证关闭**——scope.go 兑现承诺：Proxy 复用 policy.Canonicalize/CheckNetwork 同栈；幂等性探针 18 种恶意变形（userinfo/末尾点/默认端口/编码 path/IPv6/IPv4 异常/fragment/空白）全部 Canonicalize∘String 幂等；等价变形 PDP 判定一致；**IPv4 异常形式（0x7f.1/0177.0.0.1/2130706433/127.1）全部规范化为 127.0.0.1 且被 scope 拒绝**（SSRF 绕过堵死） |
-| Q-21 | 低 | internal/network/policy_proxy.go egressGuard（默认 false） | **私网 egress 守卫默认关**（T-053 发现）：`WithEgressGuard()` 是可选项，默认不启用——防 SSRF/云元数据(169.254.169.254)/CGNAT 的纵深防御成为 opt-in。默认关对本地 mocktarget(127.0.0.1:8099) 测试合理，但生产 snagd 若忘开，配合 Scope 误配即可打内网。另：守卫只查字面 IP（Canonicalize 后），域名解析到私网的 DNS 重绑定不防（解析时校验属 Day 31 真实网络栈） | 生产启动路径（snagd 构造 Proxy 处）显式 `WithEgressGuard()`，或按「非本地调试模式」默认开；DNS 重绑定解析时校验记入 Day 31 验收清单 |
+| Q-21 | 低 | internal/network/policy_proxy.go egressGuard（默认 false） | **私网 egress 守卫默认关**（T-053 发现）：`WithEgressGuard()` 是可选项，默认不启用——防 SSRF/云元数据(169.254.169.254)/CGNAT 的纵深防御成为 opt-in。默认关对本地 mocktarget(127.0.0.1:8099) 测试合理，但生产 snagd 若忘开，配合 Scope 误配即可打内网。另：守卫只查字面 IP（Canonicalize 后），域名解析到私网的 DNS 重绑定不防（解析时校验属 Day 31 真实网络栈） | 生产启动路径（snagd 构造 Proxy 处）显式 `WithEgressGuard()`，或按「非本地调试模式」默认开；DNS 重绑定解析时校验记入 Day 31 验收清单。**复测（T-055）：已修复关闭**——0687407 改为默认开（fail-safe）+ `WithEgressGuardDisabled()` 显式放宽（书面理由：授权内网渗透/本地调试），方向反转正确 |
 
 **做得好的（保持）**：迁移器版本记录与 DDL 同事务（原子）；建表按依赖序 + Down 严格逆序；Day 02 复合外键设计纯净（无冗余单列 FK）；全部查询参数化；t.TempDir/t.Cleanup 测试卫生；PRAGMA 走 DSN（per-connection，不踩连接池坑）；注释全程带 spec 引用可回溯；BUG-001 教训已固化进 .gitignore 注释。
 
