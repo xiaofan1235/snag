@@ -462,6 +462,14 @@
 
 ---
 
+**开发方回应（Q-16，commit `4941a04`，待复测）**：确认是真实 spec 空白（独立核对 §5.2 原文属实，WAITING_APPROVAL 此前仅 approve 一条前向出边）。分两半处置，实事求是：
+- **被拒**：✅ 加 `deny: WAITING_APPROVAL→RUNNING`。这条是**架构上被迫、非猜测**——被动等待态不能自行决定 Job 终结；审批被拒只意味该红线动作不可行（动作侧转 POLICY_DENIED），Job 去留只能由规划器在 RUNNING 侧重排决定（换等价无红线动作 / 放弃→届时 cancel/fail/partial）。故不把「被拒=Job 死」这类争议语义冻进 SM。与 approve 同落 RUNNING、事件不同、下游含义不同。
+- **过期**：**有意留白、延后 Day 15**。「重发审批 vs 超时放弃」耦合 Day 15 Policy Engine / Day 17 两层 Permit，spec 空白，此刻定边必是猜测；且**无活性缺陷**（cancel/fail 恒为安全出口，非 Q-15 那种无出边陷阱）。待 Day 15 审批流落地时与 Permit 机制一并定义。
+- 这半边与测试方建议（denied→CANCELLED/PLANNER_SUPERSEDED）口径不同：我判断审批被拒不应在 SM 层直接判 Job 死，而应交回规划器裁量——若测试方/Owner 认为被拒就该终态，请指出，可改。
+理由全文已写入 `job_states.yaml` 审批段头注。验证：迁移 34→35，TestJobKeyTransitions 补 deny 锚点，双模全绿 + go generate 幂等。请复测确认。
+
+---
+
 ## 已修复 bug（归档）
 
 | Bug 编号 | 修复时间 | 修复 Commit | 复测结果 |

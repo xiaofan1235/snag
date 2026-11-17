@@ -14,8 +14,9 @@
 **Day 08 —— Job 状态机 + RECONCILING + 取消/对账超时 ✅（已提交 `0e721aa`）**
 下一步：**Day 09（dev-plan/day-09.md）**，等待 Owner 批准后开始。
 
-Claude 开发前自检：`TESTING.md` 顶部「未解决 bug」= 无（Q-15 已复测关闭 T-031）。
-✅ Day 08 已验证：双模全绿 + `-race` 无竞争——Job 13 态/3 终态/34 迁移；带未决
+Claude 开发前自检：`TESTING.md` 顶部「未解决 bug」= 无。Day 08 测试全过（T-032/T-033），
+审计 Q-16（低，审批被拒/过期出口）已处置（`4941a04`）：被拒加 `deny→RUNNING`，过期延后 Day 15。
+✅ Day 08 已验证：双模全绿 + `-race` 无竞争——Job 13 态/3 终态/35 迁移；带未决
 OUTCOME_UNKNOWN 的 Job 取消先进 RECONCILING（冻结新 Claim）；对账超时自动终态
 CANCELLED+cancel_code=OUTCOME_UNRESOLVED 并记 run_partial_reasons，不永久卡（§5.2/§31 C3）。
 
@@ -95,3 +96,4 @@ CANCELLED+cancel_code=OUTCOME_UNRESOLVED 并记 run_partial_reasons，不永久�
 - **2026-11-16** — M0 收尾审计 Q-11/Q-12 处置（提交 `fff046f`）。Q-11：spec §27.5 引用了 §15.6 未登记的 external_message.updated（实现忠实跟随 §15.6、五方对账无误，属 spec 两节打架）——向前补齐，events.yaml 增该事件成为第 50 个，重跑 gen-contracts（若 Owner 更想改 §27.5 可回退）。Q-12：生成器类型映射 default 静默回退 string（同 Q-7 静默吞错）——改为未知类型报错并传播 + 负向测试。双模全绿，五方对账 50/50。
 - **2026-11-16** — 按契约冻结日对抗审计（T-017/T-018）收口 Q-7~Q-10（提交 `dcafa37`）。JCS 本体 RFC 8785 全硬边界经测试方独立探针验证合规；Schema 收口三项采纳：Q-7 policy.actions 改 additionalProperties=false（红线开关拼错响亮失败）、Q-8 ValidateAgainst 开启 format 断言（垃圾授权日期被拒）、Q-9 canon 文档记 digest 数值 <2^53 约束。Q-10 op 载荷有意保留宽松（M0 留白，审查认可），加说明待实现各 op 时收口。新增 TestPolicyHardening。趁冻结日廉价窗口改完，未留隐患进契约。下一步：Day 05。
 - **2026-11-16** — Day 08 完成（提交 `0e721aa`），**RECONCILING 崩溃一致性枢纽**：Job 状态机 + §4.1 取消 + §31 C3 对账超时。**生成器改造**：gen.go 从单机改**多机通用**（machine 描述符 + 命名前缀参数化），一次驱动 Run/Job 两台机——Run 保持历史无前缀导出 API（Event/Next/AllEvents/AllStates/IsTerminal），Job 用 Job 前缀；内部 map/struct 改名 run*/job* 避免同包冲突（Run 产物纯改名、零语义变化）。**有意偏离/设计决策**：§5.2 只给状态清单 + RECONCILING 文字语义、**没给显式边图**（不同于 §5.1 Run），故 job_states.yaml 的 34 条边按 Job 生命周期语义设计，锚点与理由全写进 yaml 头注供测试模型交叉核对。关键决策：① reconcile_unresolved 落 **CANCELLED**（OUTCOME_UNRESOLVED 是 cancel_code，属取消语义，与其它 cancel_code 一致），真·引擎故障走 fail→FAILED；② cancel 从所有非终态进入**但有意排除 RECONCILING**（对账未完成不得被取消抢先终态，§5.2「对账完成后才能终态化」，与 Run 表 STOPPING 排除 pause 同构）；③ RECONCILING 三条出边（reconcile_retry/reconcile_unresolved/fail）保证非陷阱。**控制器** job_controller.go：Apply（通用事件，durable 条件更新 WHERE revision=?）；RequestCancel（§4.1 路由：有未决 OUTCOME_UNKNOWN 动作→先进 RECONCILING 设截止时刻，否则→CANCELLED 写 cancel_code/actor/detail）；Reconcile（显式进入，无未决则 ErrInvalid）；ExpireReconciliations（注入 now，扫过期 RECONCILING→CANCELLED+cancel_code=OUTCOME_UNRESOLVED+记 run_partial_reasons，单 durable 事务快照一致）。**迁移 0003**（遵守 Day06 起迁移不可变约定，ALTER ADD COLUMN reconcile_deadline，墙钟 RFC3339——跨重启存活，monotonic 不可持久；§31 L5 monotonic 约束针对进程内定时器）。属性测试（rapid）：随机序列永不进未知态；DB 测试覆盖 DoD——取消进 RECONCILING+冻结 Claim（ErrInvalid）、未到期不动/到期终态、run_partial_reasons 有记录、重复扫描幂等为 0。双模 + `-race` 全绿，基线仍 1.23。下一步：Day 09。
+- **2026-11-17** — Q-16 处置（提交 `4941a04`）。测试模型 Day 08 审计发现 WAITING_APPROVAL 审批**被拒/过期**出口未定义（只有 approve→RUNNING，余靠 cancel/fail 兜底，spec 侧亦空白）。核对 §5.2 确认是真实空白，分两半：**被拒** 加 `deny: WAITING_APPROVAL→RUNNING`（架构被迫非猜测——被动等待态不能自决终结，审批被拒=该红线动作不可行，Job 去留交规划器在 RUNNING 侧重排，不把「被拒=死」冻进 SM）；**过期** 有意留白延后 Day 15（重发 vs 放弃耦合 Policy Engine/两层 Permit，此刻定边必猜，且无活性缺陷）。与测试方建议 denied→CANCELLED 口径不同已在 TESTING 说明可改。迁移 34→35，补 deny 测试锚点，双模全绿 + generate 幂等。下一步：Day 09。
