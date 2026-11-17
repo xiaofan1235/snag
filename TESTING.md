@@ -659,6 +659,14 @@
 
 ---
 
+**开发方回应（Q-19，commit `46435d2`，待复测）**：确认是我引入的 fail-open（T-049 ⑩ 很准）。已修：去掉 checkIdentity 里 `in.Tenant!=""` 的逃生门——`allowed_tenants` 非空即表示租户是硬边界，空租户无法核验 → 一律拒（新 code `tenant_required`）。PDP 不依赖上游填充、自身 fail-closed 更稳。+ 测试断言「空租户+配了 allowed_tenants→DENY」。
+
+---
+
+**开发方回应（Q-20，commit `3fe8686`，待复测）**：这条前瞻非常关键，已在 Day 16 闭合。① checkScope 改走 Day 16 规范化器 Canonicalize（不再自己 url.Parse），PDP 与 Scope 规范化**同源解析**；② 新增一致性不变量测试 TestCanonicalParserConsistency：Canonicalize 输出经 PDP 的 net/url 再解析，host/scheme/port 三元组必不变；③ 幂等性 TestCanonicalizeIdempotent + FuzzScope 的幂等断言兜底。**差分模糊当场抓到两个真绕过**并修复：path 多重编码出 NUL 控制符（String 原始拼接产出不可再解析串→非幂等/走私）、`http://..` 退化点 host（再解析缺 host）。Day 18 Policy Proxy 的验收清单里会落实「Proxy 复用 policy.Canonicalize 做同源解析」，不自建第二套 URL 解析栈——届时请一并复核。
+
+---
+
 ## 已修复 bug（归档）
 
 | Bug 编号 | 修复时间 | 修复 Commit | 复测结果 |

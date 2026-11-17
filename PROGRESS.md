@@ -11,13 +11,14 @@
 
 ## 当前位置
 
-**Day 15 —— Policy Engine（判定点 PDP）✅（已提交 `04d8774`）**
-下一步：**Day 16（dev-plan/day-16.md，Scope 规范化器 + 差分模糊）**，等待 Owner 批准后开始。
+**Day 16 —— Scope 规范化器 + 差分模糊 ✅（已提交 `3fe8686`）**
+下一步：**Day 17（dev-plan/day-17.md，两层 Permit）**，等待 Owner 批准后开始。
 
-Claude 开发前自检：`TESTING.md` 顶部「未解决 bug」= 无（Day 14 已测 T-046/T-047，零新发现）。
-✅ Day 15 已验证：`go test ./internal/policy/...` 全绿——确定性判定（固定顺序/fail-closed/首个 deny）：
-越权 Method/身份/租户/host/端口、授权过期/未生效/坏时间、IDOR 超额、配额耗尽、§6.3 元操作、
-红线写 deny/需审批/allow、合规只读 allow；同输入 50 次同结果。Scope URL 规范化留 Day 16。
+Claude 开发前自检：Day 15 已测 T-048/T-049；审计 Q-19（低，租户 fail-open）已修 `46435d2`、
+Q-20（info，parser differential）已在 Day 16 闭合（PDP 与规范化器同源解析 + 一致性不变量测试）。
+✅ Day 16 已验证：`go test ./internal/policy/...` 全绿；FuzzScope 90s/180 万次无「越权被判合规」。
+处理 §9.3 全陷阱（大小写/末尾点/默认端口/userinfo/多重编码/异常 IPv4 inet_aton/IPv6）；
+精确域名绝不匹配子域；Canonicalize 幂等 + Q-20 再解析三元组不变。**差分模糊当场抓到并修复 2 个真绕过**。
 
 ---
 
@@ -40,7 +41,7 @@ Claude 开发前自检：`TESTING.md` 顶部「未解决 bug」= 无（Day 14 �
 | 13 | M1 | CLI 骨架 + Pause/Resume/Stop + 故障注入 Hook | ✅已完成 | `2edbb40` | 2026-11-17 | internal/api(最小REST,Run生命周期路由+错误码映射+故障注入Hook)/faultinject(§22.3 Hook注册表,生产禁用)/cmd/pentagent(标准库flag CLI只调API,pause两档)；control加CreateRun/EnsureWorkspace；CLI全生命周期走通+注入崩溃；**M1收尾**；-race全绿。有据偏离:无网络改标准库flag替Cobra |
 | 14 | M2 | Action 状态机 + ActionProposal | ✅已完成 | `3af1c1d` | 2026-11-17 | internal/execution：action_states.yaml→action_sm.gen.go(9态/14迁移,§5.3)+ActionProposal(canonical_digest=JCS+SHA256,红线锚)+CanRedispatchUnreconciled(§4.1非幂等未对账禁重发)；DISPATCHED崩溃→OUTCOME_UNKNOWN不自动成功；domain加IdempotencyClass常量；生成器幂等 |
 | 15 | M2 | Policy Engine（判定点 PDP） | ✅已完成 | `04d8774` | 2026-11-17 | internal/policy/{engine,methods,identities,quota}.go：Decide(Policy,PolicyInput)确定性判定——§6.3元操作/授权窗口/身份租户/Scope host-scheme-port/Method/IDOR/配额/§9.1动作类红线(默认deny)；fail-closed首个deny即返回;输出ALLOW/DENY/REQUIRE_APPROVAL+稳定code;Scope URL规范化留Day16 |
-| 16 | M2 | Scope 规范化器 + 差分模糊（红线的地基） | ⬜未开始 |  |  |  |
+| 16 | M2 | Scope 规范化器 + 差分模糊（红线的地基） | ✅已完成 | `3fe8686` | 2026-11-17 | internal/policy/scope.go：Canonicalize处理§9.3全陷阱(大小写/末尾点/默认端口/userinfo/多重编码/异常IPv4 inet_aton/IPv6)+HostInTarget(精确≠子域)；checkScope改走规范化器闭合Q-20(同源解析+一致性不变量);FuzzScope差分模糊抓到并修2真绕过(path NUL控制符/退化点host);90s/180万次无越权判合规 |
 | 17 | M2 | 两层 Permit（Action Permit + Request Capability） | ⬜未开始 |  |  |  |
 | 18 | M2 | Policy Proxy + 进程内 epoch 缓存 | ⬜未开始 |  |  |  |
 | 19 | M2 | Sandbox + Egress + Fake Runner | ⬜未开始 |  |  |  |
@@ -104,3 +105,4 @@ Claude 开发前自检：`TESTING.md` 顶部「未解决 bug」= 无（Day 14 �
 - **2026-11-17** — Day 13 完成（提交 `2edbb40`），**🎉 M1 全部 13 天收尾**：CLI 骨架 + Run 生命周期 API + 故障注入 Hook。新增 internal/faultinject/、internal/api/、cmd/pentagent/（重写），control 加 CreateRun/EnsureWorkspace。**internal/api**（最小 REST）：POST /v1/runs、GET .../status、POST .../{start,pause,resume,stop}；多步迁移翻译（start=preflight→start、pause=pause→pause_drained 等）；领域错误映射稳定 HTTP 码（NotFound→404、Invalid/Conflict→409）；status 走只读池、迁移走 Controller；生命周期路径挂 §22.3 故障注入 Hook。**cmd/pentagent**（CLI）：run create/start/pause/resume/stop/status/watch，只调 API 不碰库（§17）；pause 两档 --mode now|after_current_action（§9.7）；--json 稳定输出；--yes 不代表批准未来危险动作。**有据偏离文档**：dev-plan 建议 Cobra，但本环境网络关闭无法拉取 spf13/cobra 且命令面简单，改用标准库 flag + 子命令分发、零外部依赖，保留 run <action> 命令形日后可平滑替换。**internal/faultinject**（§22.3）：Hook(name) 生产默认禁用=零注入；测试 Arm/ArmOnce/Disarm 武装注入点模拟崩溃；登记 §22.3 Hook 点清单供各模块后续挂上。验证：-race 全绿（CLI create→start→status(RUNNING)→pause --mode now→resume→stop 全走通、终态 start 稳定错误码、注入崩溃与解除恢复、API 404/错误码映射）。双模全绿，基线仍 1.23。**M1 控制核心全部完成**：单写者 Store(06)→Run SM(07)→Job SM/RECONCILING(08)→Claim/Lease/Fencing(09)→Event/Outbox(10)→幂等账本(11)→启动恢复(12)→CLI/API(13)。下一步：Day 14 进入 M2（Action 状态机 + 策略/Permit/Proxy/Sandbox/Evidence 安全核心）。
 - **2026-11-17** — Day 14 完成（提交 `3af1c1d`），**M2 开端**：Action 状态机 + ActionProposal。新增 internal/execution/，domain 补 IdempotencyClass 常量。Action 是「真正影响外部的动作」载体，Permit/Proxy/Evidence 都绕它。**状态机**（action_states.yaml→action_sm.gen.go，9 态/3 终态/14 迁移，同 Day 07 代码生成套路）：正常链 PROPOSED→AUTHORIZED→DISPATCHED→EXECUTED→RECORDED；红线 PROPOSED→WAITING_APPROVAL→AUTHORIZED/POLICY_DENIED。**§5.3 核心恢复规则**：DISPATCHED 后崩溃/未确认→OUTCOME_UNKNOWN（不自动失败/重试/成功），对账后→RECORDED 或 CANCELLED；取消只从未派发态（DISPATCHED 不可直接取消须经对账，与 Job RECONCILING 同构）；失败非独立终态走 EXECUTED(failure_class)→RECORDED。**ActionProposal**：CanonicalDigest=canon JCS(RFC8785)+SHA-256（红线/审批/去重/三方一致锚，同语义动作字段顺序无关得同摘要）；NewProposedAction 构造+填 digest+identity 必填校验；CanRedispatchUnreconciled（§4.1/§967）非幂等未对账禁重发、只读/幂等可重试（幂等须沿用目标侧 key）、未知按最保守。**代码生成**：execution 单机生成器 gen.go 沿用 control 多机版的完整迁移表+显式拒绝模式，注明将来可抽共享 internal/smgen。验证：go test ./internal/execution/... 全绿——逐迁移、DISPATCHED 崩溃→OUTCOME_UNKNOWN（故障注入演示不自动成功）、DISPATCHED 不可直接 record/cancel、幂等类重发判定、digest 顺序无关、rapid 属性测试。全仓双模+生成器幂等，基线仍 1.23。下一步：Day 15（Policy Engine PDP）。
 - **2026-11-17** — Day 15 完成（提交 `04d8774`），**红线三闸门第一道（判定）**：Policy Engine PDP。新增 internal/policy/{engine,methods,identities,quota}.go。**Decide(Policy, PolicyInput)** 确定性判定（同输入永得同一 Decision），固定顺序、fail-closed、首个 deny 即返回（§9.2 远不止 URL+Method）：①§6.3 元操作（改 Scope/定级/结束 Run）一律 deny；②授权时间窗（§45，显式 time.Parse 防坏日期=Q-8 防御，过期/未生效/坏时间 fail-closed）；③身份/租户白名单；④Scope host/scheme/port 匹配（exact/wildcard/allow_subdomains，接收已规范化 CanonicalURL——URL 规范化本身是 Day 16）；⑤Method（未核验端点仅 unverified_endpoints、已核验按 methods.default，兜底安全只读；endpoint_rules 逐端点细则 Day 15 暂不解析随 Day16/18 细化）；⑥Ownership/IDOR（limits.idor_other_records 约束他方访问）；⑦配额（network.max_requests，计数上游注入 PDP 只比较）；⑧动作类红线（§9.1 默认 deny，按 ActionClasses 查 policy.actions→deny/缺省=DENY、require_approval=需审批、allow=放行）。输出 Decision{Effect(ALLOW/DENY/REQUIRE_APPROVAL),Code 稳定机读,Reason}。LoadPolicy 从 canonical_json 解析（对应 M0 冻结的 policy.schema.json）。验证：go test ./internal/policy/... 全绿——越权 Method/身份/租户/host/端口、授权过期/未生效/坏时间、IDOR 超额、配额耗尽、§6.3、红线写 deny/需审批/allow、合规只读 allow、wildcard/子域、确定性 50 次同结果。全仓双模（17 包），基线仍 1.23。下一步：Day 16（Scope 规范化器+差分模糊，红线地基）。
+- **2026-11-17** — Day 16 完成（提交 `3fe8686`），**红线地基：Scope 规范化器 + 差分模糊**（§9.0.4：红线唯一真实攻击面）。新增 internal/policy/scope.go + scope_test.go（含 FuzzScope）；checkScope 改走规范化器。**Canonicalize 处理 §9.3 全清单**：大小写、末尾点（去全部）、默认端口、Userinfo 欺骗（net/url 剥离真实 host）、多重 URL 编码（path unescape+Clean 消解 ../）、异常 IPv4（inet_aton 式：十进制/十六进制/八进制/短式/前导零段→dotted-decimal）、IPv6（netip 压缩）；fail-closed 拒绝非 http(s)/非 ASCII host（无 IDN 库要求预 punycode）/缺 host/退化点模式/path 控制符。**硬属性**：HostInTarget 精确域名绝不匹配子域（除非 allow_subdomains）、泛域名匹配子域；Canonicalize 幂等；String() 用 net/url 构造保证与再解析互逆。**Q-20 闭合**：checkScope 改走 Canonicalize（PDP 与 Scope 同源解析）+ 一致性不变量测试（规范化输出经 PDP net/url 再解析三元组不变）；Day 18 Proxy 须复用本函数。**差分模糊 FuzzScope 当场抓到并修复两个真绕过**：① path 多重编码出 NUL 控制符致非幂等/走私（String 原始拼接产不可再解析串）→ 控制符 fail-closed + String 改 net/url 转义；② http://.. 退化点 host 再解析缺 host 非幂等 → 去全部末尾点 + 拒前导点/空标签。失败输入存回归种子 testdata/fuzz/。验证：go test ./internal/policy/... 全绿（§9.3 逐陷阱/幂等/Q-20 一致性/精确≠子域/等价判定一致/rapid）；FuzzScope 90s·180 万次无越权判合规。另修 Day 15 审计 Q-19（租户 fail-open→fail-closed，`46435d2`）。全仓双模（17 包），基线仍 1.23。下一步：Day 17（两层 Permit）。
