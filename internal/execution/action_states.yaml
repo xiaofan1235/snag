@@ -1,0 +1,52 @@
+# action_states.yaml —— Action 状态机声明表（§5.3 Action 状态）。
+# 由 gen.go 生成 action_sm.gen.go / action_states.md（同 Day 07 代码生成套路）。
+#
+# Action = 一次真正可能影响外部的动作；Permit/Proxy/Evidence 都绕它。
+# 设计锚点（§5.3）：
+#   - 正常链：PROPOSED →(策略判定) AUTHORIZED →(派发) DISPATCHED →(回执) EXECUTED →(证据) RECORDED。
+#   - 红线：PROPOSED → WAITING_APPROVAL →(批准) AUTHORIZED / (拒批) POLICY_DENIED。
+#   - 策略拒绝：PROPOSED → POLICY_DENIED（终态）。
+#   - **最关键恢复规则（§5.3）**：DISPATCHED 后崩溃 / 结果未确认 → OUTCOME_UNKNOWN，
+#     不自动失败/重试/成功；对账完成后 → RECORDED（确认已执行）或 CANCELLED（确认无副作用/放弃）。
+#   - 取消只从「尚未派发」的态进入（PROPOSED/WAITING_APPROVAL/AUTHORIZED）；**DISPATCHED 不可直接
+#     取消**（必须经 OUTCOME_UNKNOWN 对账），与 Job RECONCILING 排除取消同构。
+#   - 失败不是独立终态：有确定错误响应的失败走 EXECUTED(带 failure_class)→RECORDED。
+version: 1
+initial: PROPOSED
+
+states:
+  - PROPOSED
+  - POLICY_DENIED
+  - WAITING_APPROVAL
+  - AUTHORIZED
+  - DISPATCHED
+  - EXECUTED
+  - RECORDED
+  - OUTCOME_UNKNOWN
+  - CANCELLED
+
+terminal:
+  - POLICY_DENIED
+  - RECORDED
+  - CANCELLED
+
+transitions:
+  # 策略判定
+  - { event: authorize,     from: PROPOSED,         to: AUTHORIZED }        # 策略放行，无需审批
+  - { event: need_approval, from: PROPOSED,         to: WAITING_APPROVAL }  # 命中红线，需审批
+  - { event: deny,          from: PROPOSED,         to: POLICY_DENIED }     # 策略拒绝（终态）
+  # 审批
+  - { event: approve,       from: WAITING_APPROVAL, to: AUTHORIZED }
+  - { event: deny_approval, from: WAITING_APPROVAL, to: POLICY_DENIED }
+  # 派发与执行
+  - { event: dispatch,      from: AUTHORIZED,       to: DISPATCHED }
+  - { event: execute,       from: DISPATCHED,       to: EXECUTED }   # 收到确定回执（含带 failure_class 的失败）
+  - { event: record,        from: EXECUTED,         to: RECORDED }   # 证据落库（终态；前置条件 Day 21 填）
+  # 崩溃一致性（§5.3 核心）
+  - { event: unknown,          from: DISPATCHED,      to: OUTCOME_UNKNOWN } # 崩溃/结果未确认
+  - { event: reconcile_record, from: OUTCOME_UNKNOWN, to: RECORDED }        # 对账确认已执行
+  - { event: reconcile_cancel, from: OUTCOME_UNKNOWN, to: CANCELLED }       # 对账确认无副作用/放弃
+  # 取消：仅「尚未派发」的态（DISPATCHED 必须经对账，不在此列）
+  - event: cancel
+    from: [PROPOSED, WAITING_APPROVAL, AUTHORIZED]
+    to: CANCELLED

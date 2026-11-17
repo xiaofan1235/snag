@@ -184,6 +184,14 @@ type (
 	DataClass        string
 )
 
+// IdempotencyClass 取值（§4.1/§967：决定 OUTCOME_UNKNOWN 的对账与可否重发）。
+// §43.8 实现期细化：Day 14 落地这三类。
+const (
+	IdempotencyReadOnly      IdempotencyClass = "READ_ONLY"      // 只读：失败可直接重试
+	IdempotencyIdempotent    IdempotencyClass = "IDEMPOTENT"     // 幂等写：重试须沿用目标侧 Idempotency Key
+	IdempotencyNonIdempotent IdempotencyClass = "NON_IDEMPOTENT" // 非幂等写：未对账前禁止增代重发
+)
+
 // AttemptState 取值——§43.8「实现期按真实数据细化」：Day 09 Claim/Lease/Fencing 实际用到的
 // 子集，随后续天数需要再补（待 §43.5 集中登记）。不是穷举，仅登记已落地的。
 const (
