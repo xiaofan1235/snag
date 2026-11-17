@@ -64,14 +64,17 @@ func TestWriterConcurrencyNoBusy(t *testing.T) {
 	errs := make(chan error, workers)
 	for g := 0; g < workers; g++ {
 		wg.Add(1)
-		go func(run string) {
+		go func(run string, gBase int64) {
 			defer wg.Done()
 			for seq := 1; seq <= perWorker; seq++ {
-				// bulk：写事件。
+				// bulk：写事件。global_sequence 用 per-worker 不相交区间保证全局唯一
+				// （0004 给 events 加了 UNIQUE(global_sequence)；本探针不走 events.Append，
+				// 故手工分配 disjoint 值，仍能压并发写）。
+				gseq := gBase + int64(seq)
 				if err := w.Bulk(ctx, func(tx *sql.Tx) error {
 					_, e := tx.Exec(
-						`INSERT INTO events (run_id, sequence, event_type, created_at) VALUES (?,?,?,?)`,
-						run, seq, "job.updated", "2026-11-16T00:00:00Z")
+						`INSERT INTO events (run_id, sequence, global_sequence, event_type, created_at) VALUES (?,?,?,?,?)`,
+						run, seq, gseq, "job.updated", "2026-11-16T00:00:00Z")
 					return e
 				}); err != nil {
 					errs <- fmt.Errorf("%s bulk seq=%d: %w", run, seq, err)
@@ -89,7 +92,7 @@ func TestWriterConcurrencyNoBusy(t *testing.T) {
 				}
 			}
 			errs <- nil
-		}(fmt.Sprintf("run-%d", g))
+		}(fmt.Sprintf("run-%d", g), int64(g)*perWorker)
 	}
 	wg.Wait()
 	close(errs)
