@@ -11,13 +11,13 @@
 
 ## 当前位置
 
-**Day 19 —— 分级沙箱 + Egress + Fake Runner ✅（已提交 `9825ef1`）**
-下一步：**Day 20（dev-plan/day-20.md，Evidence Store）**（连续开发中）。
+**Day 20 —— Evidence Store（CEBS + 内容寻址 + 加密）✅（已提交 `c21e981`）**
+下一步：**Day 21（dev-plan/day-21.md，Receipt + 对账 + OUTCOME_UNKNOWN 闭环）**（连续开发中）。
 
-Claude 开发前自检：Day 18 无未解决项。
-✅ Day 19 已验证：`go test -tags sqlite_modernc ./runners/... ./internal/sandbox/...` 全绿——
-全链路（无 AI：只读动作→经 Proxy→打 Mock Target→Receipt 200+摘要，流量留证）、attestation
-NONE/UNKNOWN fail-closed 禁主动测试、过期 Egress 租约拦截。有据偏离：无网络→Runner 用 Go 接口替 gRPC、降级进程沙箱替真容器。
+Claude 开发前自检：Day 19 无未解决项。
+✅ Day 20 已验证：`go test -tags sqlite_modernc ./internal/evidence/...` 全绿——gzip 响应→CEBS
+解压正确→plain_sha256 可独立重算、密文落盘明文不落、脱敏投影不含秘密、血缘三元组齐全、内容寻址去重、
+未知编码 fail-closed。有据偏离：无网络→gzip 替 zstd（不影响 plain_sha256）。
 
 ---
 
@@ -44,7 +44,7 @@ NONE/UNKNOWN fail-closed 禁主动测试、过期 Egress 租约拦截。有据�
 | 17 | M2 | 两层 Permit（Action Permit + Request Capability） | ✅已完成 | `b2e21f4` | 2026-11-17 | internal/execution/permit.go：Action Permit 单条CAS消费(ISSUED∧未过期∧当前generation∧Attempt活跃∧Run可执行∧Policy未取代)+同事务Action→DISPATCHED一次性(§4.3#4)；并发只1成功;Request Capability max_subrequests原子消耗超限中断;RevokeAttemptPermits;迁移0005加consumed_count;-race全绿 |
 | 18 | M2 | Policy Proxy + 进程内 epoch 缓存 | ✅已完成 | `179f095` | 2026-11-17 | internal/network/{policy_proxy,dns_guard,redirect}.go：CheckRequest 逐请求回查(fail-closed前/Capability链存活/网络层Scope授权窗Method复用PDP同源/egress守卫/原子消耗子请求)+ServeHTTP转发留证+越域重定向拦截;EpochCache重建前fail-closed;不信任Runner快照 |
 | 19 | M2 | Sandbox + Egress + Fake Runner | ✅已完成 | `9825ef1` | 2026-11-17 | internal/sandbox(Attestation分级FULL/PARTIAL/NONE/UNKNOWN+硬化默认§11.1+NONE/UNKNOWN fail-closed禁主动测试)/network/egress.go(代理租约唯一出口禁直连)/runners/fake(经Proxy打MockTarget回Receipt)；全链路无AI跑通;有据偏离:Go接口替gRPC、降级沙箱替容器 |
-| 20 | M2 | Evidence Store（CEBS + 内容寻址 + 加密） | ⬜未开始 |  |  |  |
+| 20 | M2 | Evidence Store（CEBS + 内容寻址 + 加密） | ✅已完成 | `c21e981` | 2026-11-17 | internal/evidence/{blob_store,redaction,service}.go：CEBS(de-chunk+gunzip不转码)+plain_sha256内容寻址+AES-256-GCM(gzip)密文落盘明文不落+血缘三元组+脱敏投影;可独立重算;未知编码fail-closed;有据偏离gzip替zstd |
 | 21 | M2 | Receipt + 对账 + OUTCOME_UNKNOWN 闭环 | ⬜未开始 |  |  |  |
 | 22 | M2 | 安全不变量熔断器 + 工具卡住(hang)处理 | ⬜未开始 |  |  |  |
 | 23 | M3 | Provider 抽象 + 原生 tool-calling 结构化输出 | ⬜未开始 |  |  |  |
@@ -108,3 +108,4 @@ NONE/UNKNOWN fail-closed 禁主动测试、过期 Egress 租约拦截。有据�
 - **2026-11-17** — Day 17 完成（提交 `b2e21f4`），**红线三闸门第二道：两层 Permit**。新增 internal/execution/permit.go，domain 加 PermitState，迁移 0005 给 request_capabilities 加 consumed_count。**Action Permit**（一次性）：IssueActionPermit（PDP allow 后签发 ISSUED，绑定 run/action/attempt/fencing/policy_revision/identity/expiry）；ConsumeActionPermit 单条 CAS + 同事务 Action AUTHORIZED→DISPATCHED（§4.3 #4），CAS 条件（§9.5）=Permit ISSUED∧未过期∧Job 当前 generation==attempt generation∧Attempt 活跃∧Run 可执行(RUNNING/EXITING)∧PolicyRevision 未被取代，任一不满足 fail-closed；并发消费只 1 成功（单写者串行+WHERE state=ISSUED 原子守卫）；RevokeAttemptPermits 撤销未消费 Permit（接 Day 09）。**Request Capability**（逐请求）：声明 max_subrequests，ConsumeSubrequest 原子 consumed_count+1 WHERE consumed_count<max 超限中断。验证：-race 全绿（16 并发消费恰 1 成功、消费后 Action→DISPATCHED、重放/越代/过期/Run 不可执行/策略被取代均 ErrConflict、撤销、Capability 超限中断）。全仓双模（16 包），基线仍 1.23。下一步：Day 18。
 - **2026-11-17** — Day 18 完成（提交 `179f095`），**M2 核心：Policy Proxy——所有目标请求的咽喉 + 证据产生点**。新增 internal/network/{policy_proxy,dns_guard,redirect}.go + policy/network_check.go。**CheckRequest 逐请求回查**（不信任 Runner 快照 §9.5，固定顺序 fail-closed）：缓存未重建→fail-closed（§9.0.3）；Capability 整条链存活（Permit=CONSUMED∧未撤销∧Attempt 当代活跃∧Run 可执行∧Policy 未取代）；网络层 CheckNetwork(Scope+授权窗+Method，复用 PDP 同一套 Canonicalize/HostInTarget/checkMethod=同源 Q-20)；可选 egress 守卫（私网/元数据 IP）；原子消耗一个子请求配额（放最后、被拦不耗，超 max→capability_exhausted）。**ServeHTTP**：HTTP 转发+原始留证（EvidenceRecord，Day20 接 Blob）+越域重定向拦截。**EpochCache**：ready 门（重建前 fail-closed）+撤销代际。HTTPS CONNECT/MITM+CA 随 Day19、TLS 指纹 Day31。验证：全绿（fail-closed/合规放行+留证/越域/Capability 逐请求消耗+超限/Permit 撤销/egress/重定向）。全仓双模（17 包），基线仍 1.23。下一步：Day 19。
 - **2026-11-17** — Day 19 完成（提交 `9825ef1`），**执行面闭环：分级沙箱 + Egress + Fake Runner**。新增 internal/sandbox/、network/egress.go、runners/。**有据偏离**：Runner↔Core 无法引入 gRPC/protobuf（网络关）→ 进程内 Go 接口（gRPC 形状）；无法拉真容器 → 降级进程沙箱 + attestation 分级门禁骨架。**sandbox**：Attestation FULL/PARTIAL/NONE/UNKNOWN；HardenedDefault（§11.1 全硬化）；AllowActiveTesting 对 NONE/UNKNOWN fail-closed（§31 P5x）。**egress**：EgressLease→只经代理出网的 Client（禁直连 §10.1）。**runners/fake**：attestation 门禁→Egress 代理客户端→带 X-Snag-Capability 经 Proxy 打目标→Receipt。验证：全链路（无 AI 只读动作→Proxy→Mock Target→Receipt+留证）、NONE 门禁拦截、过期租约拦截。全仓双模（18 包），基线仍 1.23。下一步：Day 20。
+- **2026-11-17** — Day 20 完成（提交 `c21e981`），**防谎报的事实源：Evidence Store**。新增 internal/evidence/。**CEBS（§47.1）**：AssembleCEBS de-chunk→按 Content-Encoding 解压(gunzip)→不转码；未知编码/br fail-closed 不猜测；plain_sha256=SHA-256(CEBS) 内容寻址。**BlobStore**：路径=f(plain_sha256) 分片，内容=AES-256-GCM(gzip(CEBS)) 密文落盘明文不落（§1.5），内容寻址去重（只追加不可改 §4.3 #5），Get 解密+解压+校验哈希。**Service.Store**：CEBS→密文→脱敏投影→evidence 元数据（血缘三元组 identity/policy_revision/proxy_lease §4.1）。Redact 先替字面秘密再套通用模式。**有据偏离**：zstd 无法引入（网络关）→ stdlib gzip（不影响 plain_sha256）。验证：gzip→CEBS 重算、密文落盘明文不落、脱敏无秘密、血缘齐全、去重、未知编码 fail-closed。全仓双模（19 包），基线仍 1.23。下一步：Day 21。
