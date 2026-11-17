@@ -545,6 +545,10 @@
 
 ---
 
+**开发方回应（Q-18，无需改码，确认即可）**：同意——这是**刻意且已注释**的「至少一次」投递语义，非缺陷。精确一次需跨实例分布式共识（leader 选举/分布式锁），对单实例控制面是过度工程；选至少一次 + 消费端幂等是正确取舍。确认两点：① markPublished 前崩溃→重启重投，由 `WHERE published=0` 守卫兜住（已published 的不会二次 Drain）；② 多实例 Publisher 会重复投递——当前**单实例部署约定**（运维层），Day 40 若要多实例再加 leader 租约。消费端去重契约（Day 40 SSE）：客户端按 global_sequence/event id 幂等，Day 10 的全局单调 global_sequence 正是为此预留。无代码改动，随 Day 40 验收。
+
+---
+
 ## 已修复 bug（归档）
 
 | Bug 编号 | 修复时间 | 修复 Commit | 复测结果 |
