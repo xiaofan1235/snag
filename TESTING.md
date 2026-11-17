@@ -546,6 +546,27 @@
 - 关联 bug: 无
 - 备注: CanonicalDigest 直接用 Day 04 的 canon 包（JCS）——契约冻结的复利兑现。零新审计发现
 
+### T-048  [PASS]
+- 时间戳: 2026-11-17T08:56:00Z
+- 对应: Day 15（dev-plan/day-15.md §7，提交 04d8774，手动触发） / 里程碑 M2
+- 测试项: Day 15 默认套件 + 官方用例独立复跑
+- 命令: `go build/vet/test ./... -count=1` + `go test ./internal/policy/... -v`
+- 预期: 全绿（§7「各违规输入→deny；合规→allow」全覆盖）
+- 实际: 16 包全绿；9 个策略测试全过（含 TestBadAuthTimeFailClosed / TestDeterministic / 通配符/端口/IDOR 限额）
+- 结果: PASS
+- 关联 bug: 无
+
+### T-049  [PASS]
+- 时间戳: 2026-11-17T09:03:00Z
+- 对应: Day 15（红线绕过对抗探针 + 匹配层代码审计——本项目安全心脏，最高强度） / 里程碑 M2
+- 测试项: 九组绕过向量：①userinfo 欺骗（@前伪装 host）②通配符点边界（evilexample.test 拒 / 深层子域放行）③端口 8443 拒+缺省 443 映射 ④host 大小写 ⑤空/坏 URL fail-closed ⑥混合类默认拒优先 ⑦require_approval 不被 allow 淹没 ⑧授权窗边界 1ns 精度 ⑨IDOR 配额边界；⑩空租户行为观察；engine/identities/methods/quota 全审读
+- 命令: 临时探针（internal/policy/zz_probe_test.go，已删）`go test -run TestProbe -v`
+- 预期: 全部绕过被拦截
+- 实际: ①-⑨ 全部正确拦截/放行——PDP 本体零绕过；⑩ 确认空 Tenant 在 AllowedTenants 设置下放行 → Q-19
+- 结果: PASS
+- 关联 bug: 无
+- 备注: 实现质量高：通配符点边界无子串匹配缺陷、userinfo 由 Hostname() 剥离、全链 fail-closed（坏日期/坏 URL/未登记类/缺方法均拒）、元操作一律拒、判定确定性可回放。Q-19/Q-20 为前瞻性集成项非当前缺陷
+
 ---
 
 ## 代码质量审计（2026-11-16 首轮，随测试执行，Owner 指令新增）
@@ -572,6 +593,8 @@
 | Q-16 | 低 | internal/control/job_states.yaml WAITING_APPROVAL | 审批**被拒或过期**后 Job 的出口未定义：SM 只有 approve→RUNNING 一条出边，DENIED/EXPIRED 的审批对应 Job 只能靠用户 cancel 或 fail 终结。spec 侧也空白（只有 L3085 deny API 端点，无 Job 去向语义）——审批流 Day 15/17 要用 | Day 15 前补：SM 加 denied: WAITING_APPROVAL→CANCELLED（cancel_code=PLANNER_SUPERSEDED 或专用码）与 expired 边，或 spec 侧先定义语义；属 spec 空白而非实现违规。**复测（T-034）：已处置关闭（被拒半边）**——4941a04 加 deny: WAITING_APPROVAL→RUNNING，理由成立（被动等待态不自行终结、去留由规划器重排，不把争议语义冻进 SM）；**过期半边有意留白到 Day 15**（耦合 Policy Engine，且 cancel/fail 恒为安全出口无活性缺陷），届时随 Day 15 验收 |
 | Q-17 | info | internal/scheduler/claim.go guardFencingTx | fencing 守卫只校验「令牌=当代」，不查 Job 状态：CANCELLED/FAILED 等终态 Job 的当代令牌仍能通过 CheckFencing/WriteAttemptResult/Renew（T-036 P4 实测确认）。当前无实际危害（终态 Job 无后续写路径）；Day 17 Permit 发放、Day 18 Proxy 校验若复用 guardFencingTx 判「可写」，会放行已终态 Job 的请求 | Day 17 设计 Permit 校验时叠加 Job 存活性（state 非终态）检查；或在 guardFencingTx 加可选参数。届时随 Day 17 验收。**复测（T-037）：已修复关闭（提前处置）**——9c2b285 guardFencingTx fail-closed 叠加存活性：终态 Job 令牌匹配也拒写，三路（Check/Write/Renew）实测全拒 |
 | Q-18 | info | internal/outbox（设计语义，非缺陷） | outbox 为**至少一次**投递：bus.Publish 成功但 markPublished 前崩溃 → 重启后重投（WHERE published=0 守卫决定）；多实例 Publisher 也会重复投递。代码注释已声明该语义 | Day 40 SSE 接入时消费者按 event id / sequence 去重（SSE 客户端 event id 已有全局序可用）；单实例部署假设写入运维约定。届时随 Day 40 验收 |
+| Q-19 | 低 | internal/policy/identities.go checkIdentity | **空租户 fail-open**（T-049 ⑩ 实测）：策略设置 `identities.allowed_tenants=[tenant-a]` 时，`Tenant=""` 的请求放行——租户限制只对携带租户的请求生效。若租户是硬边界（跨租户对象=IDOR 高危场景），无租户请求应拒或显式区分「不适用」 | Day 16/18 身份→租户接入时收口：PolicyInput.Tenant 由 Identity 注册表填充后此口子自然闭合；建议 PDP 在 AllowedTenants 非空且 Tenant 为空时改判 deny 或标注语义。spec §9.2 租户语义待澄清 |
+| Q-20 | info | internal/policy/methods.go checkScope × 未来 Day 16/18 | **parser differential 前瞻**：PDP 用 Go net/url 解析 CanonicalURL；Day 16 规范化器与 Day 18 Policy Proxy 若用不同 URL 解析栈（或不同规范化规则），可能出现「PDP 判 A 放行、Proxy 按解析 B 转发到 C」的绕过。代码已声明「只接收已规范化 URL」，但一致性未验证 | Day 16 验收时核对：规范化器输出的 CanonicalURL 经 PDP 的 url.Parse 再解析必须幂等（host/scheme/port 三元组不变）；Day 18 Proxy 与 PDP 同源解析。记入两天验收清单 |
 
 **做得好的（保持）**：迁移器版本记录与 DDL 同事务（原子）；建表按依赖序 + Down 严格逆序；Day 02 复合外键设计纯净（无冗余单列 FK）；全部查询参数化；t.TempDir/t.Cleanup 测试卫生；PRAGMA 走 DSN（per-connection，不踩连接池坑）；注释全程带 spec 引用可回溯；BUG-001 教训已固化进 .gitignore 注释。
 
