@@ -598,6 +598,16 @@
 
 **八天批次验收结论：Day 16-23 全部通过。M2（Day 14-22）里程碑完成：Action 状态机、PDP、Scope 规范化器、两层 Permit、Policy Proxy、沙箱/Egress、Evidence CEBS、Receipt 对账闭环、安全熔断器。遗留：BUG-002（Windows 构建，build tag 拆分待修）。**
 
+### T-053  [PASS]（Owner 质询后的深测补全轮）
+- 时间戳: 2026-11-17T12:27:00Z
+- 对应: Day 16-23 深度补测（首轮 T-050~T-052 只做了套件+Q-19/Q-20 深钻，Owner 质询"细致一点"后补全） / M2
+- 测试项: ①补读八天全部 §7 验收口径（首轮遗漏）；②Permit 一次性消费独立探针（8 goroutine 并发抢消费）；③Evidence 链六向探针（往返/哈希重算/**全目录扫描无明文落盘**/篡改检出/内容寻址去重/错误 DEK 隔离+脱敏无误伤）；④断路器双探针（3 次阈值精确触闸/回调恰一次/锁外调用/threshold≤0 最严）；⑤Proxy 执法链全文审读（六步顺序、配额最后消耗不烧被拦请求、CheckNetwork fail-closed 封死守卫条件分支疑点）；⑥**全量真库套件**（首轮只跑了默认模式——真库用例会被 SKIP，此为实际缺口）；⑦重定向守卫（禁自动跟随+重过 Scope）；⑧Day 19/21/23 核心实现扫读（配对门控/证明分级 fail-closed/修复恰一次）
+- 命令: `go test -tags sqlite_modernc ./... -count=1`（169 测试全过 **0 SKIP**）+ 三个临时探针（已删）+ 源码审读
+- 实际: 全部通过。新发现 Q-21（egressGuard 默认关）
+- 结果: PASS
+- 关联 bug: BUG-002（本地补丁绕过后执行，测毕还原）
+- 备注: 本轮方法论修正记录：**"测试名覆盖良好"不能替代行为级验证**——首轮对六天只看了测试名，本轮以独立探针+真库全量补齐。默认模式套件会静默 SKIP 真库用例，批次验收必须双模式都跑
+
 ---
 
 ## 代码质量审计（2026-11-16 首轮，随测试执行，Owner 指令新增）
@@ -626,6 +636,7 @@
 | Q-18 | info | internal/outbox（设计语义，非缺陷） | outbox 为**至少一次**投递：bus.Publish 成功但 markPublished 前崩溃 → 重启后重投（WHERE published=0 守卫决定）；多实例 Publisher 也会重复投递。代码注释已声明该语义 | Day 40 SSE 接入时消费者按 event id / sequence 去重（SSE 客户端 event id 已有全局序可用）；单实例部署假设写入运维约定。届时随 Day 40 验收 |
 | Q-19 | 低 | internal/policy/identities.go checkIdentity | **空租户 fail-open**（T-049 ⑩ 实测）：策略设置 `identities.allowed_tenants=[tenant-a]` 时，`Tenant=""` 的请求放行——租户限制只对携带租户的请求生效。若租户是硬边界（跨租户对象=IDOR 高危场景），无租户请求应拒或显式区分「不适用」 | Day 16/18 身份→租户接入时收口：PolicyInput.Tenant 由 Identity 注册表填充后此口子自然闭合；建议 PDP 在 AllowedTenants 非空且 Tenant 为空时改判 deny 或标注语义。spec §9.2 租户语义待澄清 |
 | Q-20 | info | internal/policy/methods.go checkScope × 未来 Day 16/18 | **parser differential 前瞻**：PDP 用 Go net/url 解析 CanonicalURL；Day 16 规范化器与 Day 18 Policy Proxy 若用不同 URL 解析栈（或不同规范化规则），可能出现「PDP 判 A 放行、Proxy 按解析 B 转发到 C」的绕过。代码已声明「只接收已规范化 URL」，但一致性未验证 | Day 16 验收时核对：规范化器输出的 CanonicalURL 经 PDP 的 url.Parse 再解析必须幂等（host/scheme/port 三元组不变）；Day 18 Proxy 与 PDP 同源解析。记入两天验收清单。**复测（T-052）：已验证关闭**——scope.go 兑现承诺：Proxy 复用 policy.Canonicalize/CheckNetwork 同栈；幂等性探针 18 种恶意变形（userinfo/末尾点/默认端口/编码 path/IPv6/IPv4 异常/fragment/空白）全部 Canonicalize∘String 幂等；等价变形 PDP 判定一致；**IPv4 异常形式（0x7f.1/0177.0.0.1/2130706433/127.1）全部规范化为 127.0.0.1 且被 scope 拒绝**（SSRF 绕过堵死） |
+| Q-21 | 低 | internal/network/policy_proxy.go egressGuard（默认 false） | **私网 egress 守卫默认关**（T-053 发现）：`WithEgressGuard()` 是可选项，默认不启用——防 SSRF/云元数据(169.254.169.254)/CGNAT 的纵深防御成为 opt-in。默认关对本地 mocktarget(127.0.0.1:8099) 测试合理，但生产 snagd 若忘开，配合 Scope 误配即可打内网。另：守卫只查字面 IP（Canonicalize 后），域名解析到私网的 DNS 重绑定不防（解析时校验属 Day 31 真实网络栈） | 生产启动路径（snagd 构造 Proxy 处）显式 `WithEgressGuard()`，或按「非本地调试模式」默认开；DNS 重绑定解析时校验记入 Day 31 验收清单 |
 
 **做得好的（保持）**：迁移器版本记录与 DDL 同事务（原子）；建表按依赖序 + Down 严格逆序；Day 02 复合外键设计纯净（无冗余单列 FK）；全部查询参数化；t.TempDir/t.Cleanup 测试卫生；PRAGMA 走 DSN（per-connection，不踩连接池坑）；注释全程带 spec 引用可回溯；BUG-001 教训已固化进 .gitignore 注释。
 
