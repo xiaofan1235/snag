@@ -10,6 +10,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"pentagent/internal/domain"
 	"pentagent/internal/store"
@@ -22,6 +23,34 @@ type Controller struct {
 
 // NewController 用单写者构造控制器。
 func NewController(w *store.Writer) *Controller { return &Controller{w: w} }
+
+// EnsureWorkspace 幂等建一个 workspace（CLI/API 的默认工作区用）。
+func (c *Controller) EnsureWorkspace(ctx context.Context, id, name string) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	return c.w.Durable(ctx, func(tx *sql.Tx) error {
+		_, e := tx.ExecContext(ctx,
+			`INSERT OR IGNORE INTO workspaces (id, name, memory_project_key, created_at) VALUES (?,?,?,?)`,
+			id, name, "mpk-"+id, now)
+		return e
+	})
+}
+
+// CreateRun 在 workspace 下新建一个 DRAFT Run（Run 状态机初态），返回其 id。
+func (c *Controller) CreateRun(ctx context.Context, workspaceID, name, authDigest string) (domain.ID, error) {
+	id := domain.NewID()
+	now := time.Now().UTC().Format(time.RFC3339)
+	err := c.w.Durable(ctx, func(tx *sql.Tx) error {
+		_, e := tx.ExecContext(ctx,
+			`INSERT INTO runs (id, workspace_id, name, state, authorization_scope_digest, created_at)
+			 VALUES (?,?,?,?,?,?)`,
+			string(id), workspaceID, name, string(domain.RunDraft), authDigest, now)
+		return e
+	})
+	if err != nil {
+		return "", err
+	}
+	return id, nil
+}
 
 // Apply 对 runID 施加事件 ev：
 //   - 在一个 durable 事务内读当前 (state, revision)；
