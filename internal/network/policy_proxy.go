@@ -79,8 +79,19 @@ type Proxy struct {
 	evidence    EvidenceSink
 	cache       *EpochCache
 	client      *http.Client
-	egressGuard bool // 开启则私网/元数据地址一律拒出网（云部署防 SSRF/DNS 重绑定，默认关）
+	egressGuard bool        // 开启则私网/元数据地址一律拒出网（云部署防 SSRF/DNS 重绑定，默认关）
+	killed      atomic.Bool // Kill Switch：熔断后 revoke_all_target_egress，逐请求一律 fail-closed（§9.7）
 }
+
+// RevokeAllTargetEgress 拉下 Kill Switch（§9.7）：之后所有出网请求一律拒绝（SYSTEM_DEGRADED），
+// 并 bump 代际使在途缓存全部作废。由安全熔断器在绊线超阈时触发，宁可停机不可带病放行。幂等。
+func (p *Proxy) RevokeAllTargetEgress() {
+	p.killed.Store(true)
+	p.cache.BumpEpoch()
+}
+
+// Degraded 报告是否已被 Kill Switch 置为降级态。
+func (p *Proxy) Degraded() bool { return p.killed.Load() }
 
 // Option 配置 Proxy。
 type Option func(*Proxy)
@@ -122,6 +133,9 @@ func allowR() CheckResult                    { return CheckResult{Allowed: true}
 // ③ 载入 Run 的 Policy；④ 网络层 Scope+授权窗+Method（与 PDP 同源）；⑤ 私网 egress 守卫；
 // ⑥ 原子消耗一个子请求配额（放最后，被拦的请求不耗预算）。
 func (p *Proxy) CheckRequest(ctx context.Context, capID domain.ID, rawURL, method string, endpointVerified bool, now time.Time) CheckResult {
+	if p.killed.Load() {
+		return blockR("system_degraded", "Kill Switch 已触发，全部出网已撤销（§9.7）")
+	}
 	if !p.cache.Ready() {
 		return blockR("proxy_not_ready", "缓存重建前 fail-closed（§9.0.3）")
 	}
