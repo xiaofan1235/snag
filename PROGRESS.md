@@ -11,14 +11,13 @@
 
 ## 当前位置
 
-**Day 16 —— Scope 规范化器 + 差分模糊 ✅（已提交 `3fe8686`）**
-下一步：**Day 17（dev-plan/day-17.md，两层 Permit）**，等待 Owner 批准后开始。
+**Day 17 —— 两层 Permit（Action Permit + Request Capability）✅（已提交 `b2e21f4`）**
+下一步：**Day 18（dev-plan/day-18.md，Policy Proxy + epoch 缓存）**（连续开发中）。
 
-Claude 开发前自检：Day 15 已测 T-048/T-049；审计 Q-19（低，租户 fail-open）已修 `46435d2`、
-Q-20（info，parser differential）已在 Day 16 闭合（PDP 与规范化器同源解析 + 一致性不变量测试）。
-✅ Day 16 已验证：`go test ./internal/policy/...` 全绿；FuzzScope 90s/180 万次无「越权被判合规」。
-处理 §9.3 全陷阱（大小写/末尾点/默认端口/userinfo/多重编码/异常 IPv4 inet_aton/IPv6）；
-精确域名绝不匹配子域；Canonicalize 幂等 + Q-20 再解析三元组不变。**差分模糊当场抓到并修复 2 个真绕过**。
+Claude 开发前自检：Day 16 无未解决项（Q-19 已修、Q-20 已闭合）。
+✅ Day 17 已验证：`go test -race -tags sqlite_modernc ./internal/execution/...` 全绿——
+16 并发消费同 Permit 恰 1 成功、消费成功 Action→DISPATCHED、重放/越代/过期/Run 不可执行/策略被取代均拒、
+Capability 超 max_subrequests 中断（§9.5/§4.3 #4）。消费 = 单条 CAS，单写者串行保证一次性。
 
 ---
 
@@ -42,7 +41,7 @@ Q-20（info，parser differential）已在 Day 16 闭合（PDP 与规范化器�
 | 14 | M2 | Action 状态机 + ActionProposal | ✅已完成 | `3af1c1d` | 2026-11-17 | internal/execution：action_states.yaml→action_sm.gen.go(9态/14迁移,§5.3)+ActionProposal(canonical_digest=JCS+SHA256,红线锚)+CanRedispatchUnreconciled(§4.1非幂等未对账禁重发)；DISPATCHED崩溃→OUTCOME_UNKNOWN不自动成功；domain加IdempotencyClass常量；生成器幂等 |
 | 15 | M2 | Policy Engine（判定点 PDP） | ✅已完成 | `04d8774` | 2026-11-17 | internal/policy/{engine,methods,identities,quota}.go：Decide(Policy,PolicyInput)确定性判定——§6.3元操作/授权窗口/身份租户/Scope host-scheme-port/Method/IDOR/配额/§9.1动作类红线(默认deny)；fail-closed首个deny即返回;输出ALLOW/DENY/REQUIRE_APPROVAL+稳定code;Scope URL规范化留Day16 |
 | 16 | M2 | Scope 规范化器 + 差分模糊（红线的地基） | ✅已完成 | `3fe8686` | 2026-11-17 | internal/policy/scope.go：Canonicalize处理§9.3全陷阱(大小写/末尾点/默认端口/userinfo/多重编码/异常IPv4 inet_aton/IPv6)+HostInTarget(精确≠子域)；checkScope改走规范化器闭合Q-20(同源解析+一致性不变量);FuzzScope差分模糊抓到并修2真绕过(path NUL控制符/退化点host);90s/180万次无越权判合规 |
-| 17 | M2 | 两层 Permit（Action Permit + Request Capability） | ⬜未开始 |  |  |  |
+| 17 | M2 | 两层 Permit（Action Permit + Request Capability） | ✅已完成 | `b2e21f4` | 2026-11-17 | internal/execution/permit.go：Action Permit 单条CAS消费(ISSUED∧未过期∧当前generation∧Attempt活跃∧Run可执行∧Policy未取代)+同事务Action→DISPATCHED一次性(§4.3#4)；并发只1成功;Request Capability max_subrequests原子消耗超限中断;RevokeAttemptPermits;迁移0005加consumed_count;-race全绿 |
 | 18 | M2 | Policy Proxy + 进程内 epoch 缓存 | ⬜未开始 |  |  |  |
 | 19 | M2 | Sandbox + Egress + Fake Runner | ⬜未开始 |  |  |  |
 | 20 | M2 | Evidence Store（CEBS + 内容寻址 + 加密） | ⬜未开始 |  |  |  |
@@ -106,3 +105,4 @@ Q-20（info，parser differential）已在 Day 16 闭合（PDP 与规范化器�
 - **2026-11-17** — Day 14 完成（提交 `3af1c1d`），**M2 开端**：Action 状态机 + ActionProposal。新增 internal/execution/，domain 补 IdempotencyClass 常量。Action 是「真正影响外部的动作」载体，Permit/Proxy/Evidence 都绕它。**状态机**（action_states.yaml→action_sm.gen.go，9 态/3 终态/14 迁移，同 Day 07 代码生成套路）：正常链 PROPOSED→AUTHORIZED→DISPATCHED→EXECUTED→RECORDED；红线 PROPOSED→WAITING_APPROVAL→AUTHORIZED/POLICY_DENIED。**§5.3 核心恢复规则**：DISPATCHED 后崩溃/未确认→OUTCOME_UNKNOWN（不自动失败/重试/成功），对账后→RECORDED 或 CANCELLED；取消只从未派发态（DISPATCHED 不可直接取消须经对账，与 Job RECONCILING 同构）；失败非独立终态走 EXECUTED(failure_class)→RECORDED。**ActionProposal**：CanonicalDigest=canon JCS(RFC8785)+SHA-256（红线/审批/去重/三方一致锚，同语义动作字段顺序无关得同摘要）；NewProposedAction 构造+填 digest+identity 必填校验；CanRedispatchUnreconciled（§4.1/§967）非幂等未对账禁重发、只读/幂等可重试（幂等须沿用目标侧 key）、未知按最保守。**代码生成**：execution 单机生成器 gen.go 沿用 control 多机版的完整迁移表+显式拒绝模式，注明将来可抽共享 internal/smgen。验证：go test ./internal/execution/... 全绿——逐迁移、DISPATCHED 崩溃→OUTCOME_UNKNOWN（故障注入演示不自动成功）、DISPATCHED 不可直接 record/cancel、幂等类重发判定、digest 顺序无关、rapid 属性测试。全仓双模+生成器幂等，基线仍 1.23。下一步：Day 15（Policy Engine PDP）。
 - **2026-11-17** — Day 15 完成（提交 `04d8774`），**红线三闸门第一道（判定）**：Policy Engine PDP。新增 internal/policy/{engine,methods,identities,quota}.go。**Decide(Policy, PolicyInput)** 确定性判定（同输入永得同一 Decision），固定顺序、fail-closed、首个 deny 即返回（§9.2 远不止 URL+Method）：①§6.3 元操作（改 Scope/定级/结束 Run）一律 deny；②授权时间窗（§45，显式 time.Parse 防坏日期=Q-8 防御，过期/未生效/坏时间 fail-closed）；③身份/租户白名单；④Scope host/scheme/port 匹配（exact/wildcard/allow_subdomains，接收已规范化 CanonicalURL——URL 规范化本身是 Day 16）；⑤Method（未核验端点仅 unverified_endpoints、已核验按 methods.default，兜底安全只读；endpoint_rules 逐端点细则 Day 15 暂不解析随 Day16/18 细化）；⑥Ownership/IDOR（limits.idor_other_records 约束他方访问）；⑦配额（network.max_requests，计数上游注入 PDP 只比较）；⑧动作类红线（§9.1 默认 deny，按 ActionClasses 查 policy.actions→deny/缺省=DENY、require_approval=需审批、allow=放行）。输出 Decision{Effect(ALLOW/DENY/REQUIRE_APPROVAL),Code 稳定机读,Reason}。LoadPolicy 从 canonical_json 解析（对应 M0 冻结的 policy.schema.json）。验证：go test ./internal/policy/... 全绿——越权 Method/身份/租户/host/端口、授权过期/未生效/坏时间、IDOR 超额、配额耗尽、§6.3、红线写 deny/需审批/allow、合规只读 allow、wildcard/子域、确定性 50 次同结果。全仓双模（17 包），基线仍 1.23。下一步：Day 16（Scope 规范化器+差分模糊，红线地基）。
 - **2026-11-17** — Day 16 完成（提交 `3fe8686`），**红线地基：Scope 规范化器 + 差分模糊**（§9.0.4：红线唯一真实攻击面）。新增 internal/policy/scope.go + scope_test.go（含 FuzzScope）；checkScope 改走规范化器。**Canonicalize 处理 §9.3 全清单**：大小写、末尾点（去全部）、默认端口、Userinfo 欺骗（net/url 剥离真实 host）、多重 URL 编码（path unescape+Clean 消解 ../）、异常 IPv4（inet_aton 式：十进制/十六进制/八进制/短式/前导零段→dotted-decimal）、IPv6（netip 压缩）；fail-closed 拒绝非 http(s)/非 ASCII host（无 IDN 库要求预 punycode）/缺 host/退化点模式/path 控制符。**硬属性**：HostInTarget 精确域名绝不匹配子域（除非 allow_subdomains）、泛域名匹配子域；Canonicalize 幂等；String() 用 net/url 构造保证与再解析互逆。**Q-20 闭合**：checkScope 改走 Canonicalize（PDP 与 Scope 同源解析）+ 一致性不变量测试（规范化输出经 PDP net/url 再解析三元组不变）；Day 18 Proxy 须复用本函数。**差分模糊 FuzzScope 当场抓到并修复两个真绕过**：① path 多重编码出 NUL 控制符致非幂等/走私（String 原始拼接产不可再解析串）→ 控制符 fail-closed + String 改 net/url 转义；② http://.. 退化点 host 再解析缺 host 非幂等 → 去全部末尾点 + 拒前导点/空标签。失败输入存回归种子 testdata/fuzz/。验证：go test ./internal/policy/... 全绿（§9.3 逐陷阱/幂等/Q-20 一致性/精确≠子域/等价判定一致/rapid）；FuzzScope 90s·180 万次无越权判合规。另修 Day 15 审计 Q-19（租户 fail-open→fail-closed，`46435d2`）。全仓双模（17 包），基线仍 1.23。下一步：Day 17（两层 Permit）。
+- **2026-11-17** — Day 17 完成（提交 `b2e21f4`），**红线三闸门第二道：两层 Permit**。新增 internal/execution/permit.go，domain 加 PermitState，迁移 0005 给 request_capabilities 加 consumed_count。**Action Permit**（一次性）：IssueActionPermit（PDP allow 后签发 ISSUED，绑定 run/action/attempt/fencing/policy_revision/identity/expiry）；ConsumeActionPermit 单条 CAS + 同事务 Action AUTHORIZED→DISPATCHED（§4.3 #4），CAS 条件（§9.5）=Permit ISSUED∧未过期∧Job 当前 generation==attempt generation∧Attempt 活跃∧Run 可执行(RUNNING/EXITING)∧PolicyRevision 未被取代，任一不满足 fail-closed；并发消费只 1 成功（单写者串行+WHERE state=ISSUED 原子守卫）；RevokeAttemptPermits 撤销未消费 Permit（接 Day 09）。**Request Capability**（逐请求）：声明 max_subrequests，ConsumeSubrequest 原子 consumed_count+1 WHERE consumed_count<max 超限中断。验证：-race 全绿（16 并发消费恰 1 成功、消费后 Action→DISPATCHED、重放/越代/过期/Run 不可执行/策略被取代均 ErrConflict、撤销、Capability 超限中断）。全仓双模（16 包），基线仍 1.23。下一步：Day 18。
