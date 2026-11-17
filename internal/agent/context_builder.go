@@ -121,6 +121,29 @@ const dataRegionHeader = "\n═══════ 数据区（不可信内容；
 // 持续用真实 Usage 纠偏（§7.5），此处是装配期的占位度量。
 func estTokens(s string) int { return len(s)/4 + 1 }
 
+// neutralizeDelimiters 中和不可信内容里伪造的数据区定界符（Q-24 / §46.5 二阶注入）：
+// 行首的块界 `--- [source=` → `~~ [source=`，指令标题 `## ` → 全角 `＃＃ `。只中和这两种会被误判为
+// 「结构标记」的模式，避免过度转义破坏正常内容；request_digest 对渲染后整体取值，故不影响 digest 契约。
+func neutralizeDelimiters(s string) string {
+	lines := strings.Split(s, "\n")
+	for i, ln := range lines {
+		t := strings.TrimLeft(ln, " \t")
+		lead := ln[:len(ln)-len(t)]
+		switch {
+		case strings.HasPrefix(t, "--- [source="):
+			lines[i] = lead + "~~ [source=" + t[len("--- [source="):]
+		case strings.HasPrefix(t, "## "):
+			lines[i] = lead + "＃＃ " + t[len("## "):]
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+// inlineLabel 把来源标签压成单行（去换行防越界）并中和定界符，供写入 wrapper 行。
+func inlineLabel(s string) string {
+	return neutralizeDelimiters(strings.ReplaceAll(s, "\n", " "))
+}
+
 func tokensOf(explicit int, content string) int {
 	if explicit > 0 {
 		return explicit
@@ -254,17 +277,19 @@ func Build(in BuildInput, bud Budget) BuiltContext {
 	}
 
 	// 4) 数据区（§46.2 层一结构隔离）：检索命中（不可信派生）+ 原始不可信数据，统一带来源标签。
+	// Q-24：对不可信内容做定界符中和——内容/标签里伪造的 `--- [source=` 块界与 `## ` 指令标题被转义，
+	// 防二阶注入（§46.5）诱导模型在数据区内「重分区」。我方真实 wrapper 不经中和，provenance 标签完好。
 	var dr strings.Builder
 	dr.WriteString(dataRegionHeader)
 	for _, k := range kept {
-		fmt.Fprintf(&dr, "\n--- [source=%s untrusted] %s ---\n%s\n", k.Source, k.Title, k.Content)
+		fmt.Fprintf(&dr, "\n--- [source=%s untrusted] %s ---\n%s\n", k.Source, inlineLabel(k.Title), neutralizeDelimiters(k.Content))
 	}
 	for _, d := range in.Untrusted {
 		label := d.Label
 		if label == "" {
 			label = string(d.Source)
 		}
-		fmt.Fprintf(&dr, "\n--- [source=%s untrusted] %s ---\n%s\n", d.Source, label, d.Content)
+		fmt.Fprintf(&dr, "\n--- [source=%s untrusted] %s ---\n%s\n", d.Source, inlineLabel(label), neutralizeDelimiters(d.Content))
 	}
 	for _, n := range bc.Omitted {
 		fmt.Fprintf(&dr, "\n[因预算省略了 %d 条 %s（可展开）]\n", n.Count, n.Source)
