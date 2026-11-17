@@ -608,6 +608,20 @@
 - 关联 bug: BUG-002（本地补丁绕过后执行，测毕还原）
 - 备注: 本轮方法论修正记录：**"测试名覆盖良好"不能替代行为级验证**——首轮对六天只看了测试名，本轮以独立探针+真库全量补齐。默认模式套件会静默 SKIP 真库用例，批次验收必须双模式都跑
 
+### T-054  [PASS]（全量代码审计，Owner 指令）
+- 时间戳: 2026-11-17T12:31:00Z
+- 对应: Day 01-23 全仓审计（112 个 Go 文件 / 9148 行非测试代码） / 全里程碑
+- 测试项: 七个横切面 + 补读未细读文件：①SQL 参数化纪律 ②单写者旁路 ③秘密/密钥泄漏面 ④时间不变量（UTC/RFC3339）⑤TLS/出网构造 ⑥忽略错误的方向性 ⑦配置卫生（gitignore/go.mod/监听面）；补读 cmd/pentagent、anthropic 适配器、sandbox、runners、pentagentd、egress 全文
+- 命令: 系统化 grep 溯源 + 逐文件审读
+- 实际: **零高危发现**。清洁面：SQL 全参数化（唯一表名拼接是 GuardRevision 白名单，Day 11 已审）；sql.Open 仅存在于 store 构造器（零 Writer 旁路）；时间全 UTC（reconciler 的疑点为 grep 误报，上行即 .UTC()）；无 InsecureSkipVerify；egress.Client 无直连兜底（无代理即无路由）；APIKey 仅入请求头不入日志/错误串；三处忽略错误均为 fail-closed 方向的 best-effort（过期标记失败仍拒/wal_checkpoint/ROLLBACK-TO 清理）；gitignore 已吸收 BUG-001 教训且不误伤 fuzz 语料；go.mod 仅 4 个外部依赖且全部钉版有据。新发现两条集成真空记录（Q-22/Q-23，均为 info 非缺陷）
+- 结果: PASS（代码质量整体评级：高）
+- 关联 bug: 无新增
+
+| 新编号 | 级别 | 内容 |
+|---|---|---|
+| Q-22 | info | **组件接线真空清单**（T-054 盘点，均属路线图后续天的正常状态，非缺陷）：evidence.BlobStore 无生产调用方（DEK 来源/轮换策略无归属——spec §45 C2「密钥丢失=证据丢失」待落到开发天）；providers 适配器（anthropic）无生产调用方（APIKey 来源待 Day 25 接线）；audit_chain 表零写入（Day 46）；internal/api Server 未被 pentagentd serve（Day 39+）。建议在 PROGRESS 或 ROADMAP 汇总此清单防漏接 |
+| Q-23 | info | pentagentd 仍为 reconcile-only 骨架（70 行，无 HTTP 监听/无调度循环），占位注释诚实；但 CLI 默认连 127.0.0.1:8787——**当前版本 CLI 对真实 daemon 不可用**（生命周期测试走进程内）。Day 39+ daemon 接线时验收 |
+
 ---
 
 ## 代码质量审计（2026-11-16 首轮，随测试执行，Owner 指令新增）
