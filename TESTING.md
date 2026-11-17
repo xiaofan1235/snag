@@ -639,9 +639,30 @@
 
 **Day 24-30 批次验收结论：全部通过。M3（Day 23-30）里程碑完成：预算账本、Executor Loop、Context Builder（不可信隔离）、两阶段压缩、Strategist、PlanCompiler CAS、Scheduler 评分调度、自主推进端到端。新增 Q-24（低）。**
 
+### T-058  [PASS]（Day 31-37 批次 + Q-24 复测）
+- 时间戳: 2026-11-17T14:20:00Z
+- 对应: Day 31-37 连续七天批次（65b8c9a..cda86d5）+ Q-24 修复（6f9b5df），手动触发 / **M4 收口**
+- 测试项: ①Q-24 复测（定界符中和落地）；②双模式全量套件；③七天 §7 全读 + 新包测试枚举（runners/js 2 + coverage 10 + experiments 5 + oast 3 + findings 13 + knowledge 9 + tools 3 = 45 项）
+- 命令: `go build/vet/test ./... [-tags sqlite_modernc] -count=1 -v`
+- 实际: Q-24 关闭（neutralizeDelimiters 按建议转义、保留前导空白）；默认模式 32 包 ok；真库 **256 测试全过 0 SKIP**；§7 全项有测试映射且过
+- 结果: PASS
+- 关联 bug: 无
+
+### T-059  [PASS]（防谎报三闸独立探针——本批核心安全价值）
+- 时间戳: 2026-11-17T14:36:00Z
+- 对应: Day 36/37 防谎报不变量独立验证（渗透工具可信度的命根） / M4
+- 测试项: ①逐字引用：原始字节空间偏移 + CRLF 归一双侧比对 → 正确引用通过；②**释义冒充拒**（改写文本冒充原文）；③**伪造 Evidence ID 拒**；④坏区间拒（超界/倒序）；⑤降级纯函数：强反证→REJECTED、弱反证→NEEDS_EVIDENCE、哈希失败→NEEDS_EVIDENCE
+- 命令: 临时探针（internal/findings/zz_probe_test.go，已删）`go test -tags sqlite_modernc -run TestProbe -v`
+- 实际: 全部通过——释义/伪造 ID/坏区间三路攻击全部被拒，降级语义正确
+- 结果: PASS
+- 关联 bug: 无
+- 备注: 语义澄清记档（供 Day 38 报告实现参考）：**Citation 字节偏移定义在原始（未归一）字节空间**，归一化只作用于两侧比对容差——符合 §13.3「映射回原文」。另：探针两轮失败均为测试方自身错误（关键词误报/归一化空间偏移/转义 no-op），实现无恙——探针修正过程本身验证了比对逻辑的严格性
+
+**Day 31-37 批次验收结论：全部通过。M4（Day 31-37）里程碑完成：攻击面发现（JS AST/规格驱动/运行时捕获）、模块聚类+技术栈指纹（无证据不生成）、Hypothesis/Experiment/Coverage（baseline-only 不可 TESTED）、序列/竞态实验+OAST、工具恢复/知识库/Skill、Candidate Finding+逐字引用+独立 Verifier、Replay+CVSS 确定性+反证自动降级。Q-1~Q-24 全闭环，零未决审计项。**
+
 | 新编号 | 级别 | 内容 |
 |---|---|---|
-| Q-24 | 低 | **数据区定界符未中和**（T-056 ③ 实测）：Untrusted/Retrieved 内容原样写入数据区，内容中伪造的 `--- [source=skill untrusted] ... ---` 标记与 `## 指令标题` 原样保留——指令区完整性不受影响（结构隔离靠拼接顺序，字节级验证过），但模型读到数据区时可能被内容内伪造标记诱导重分区（§46.5 二阶注入面） | 对不可信内容做定界符中和：行首 `--- [source=` 与 `## ` 模式转义（如替换为 `~~[source=` / `＃＃ `）；Day 26 补丁式修复即可，不影响 digest 契约（request_digest 对渲染后整体取值） |
+| Q-24 | 低 | **数据区定界符未中和**（T-056 ③ 实测）：Untrusted/Retrieved 内容原样写入数据区，内容中伪造的 `--- [source=skill untrusted] ... ---` 标记与 `## 指令标题` 原样保留——指令区完整性不受影响（结构隔离靠拼接顺序，字节级验证过），但模型读到数据区时可能被内容内伪造标记诱导重分区（§46.5 二阶注入面） | 对不可信内容做定界符中和：行首 `--- [source=` 与 `## ` 模式转义（如替换为 `~~[source=` / `＃＃ `）；Day 26 补丁式修复即可，不影响 digest 契约（request_digest 对渲染后整体取值） **复测（T-058）：已修复关闭**——6f9b5df neutralizeDelimiters 按建议落地（`--- [source=`→`~~ [source=`、`## `→`＃＃ `，保留前导空白），随批全绿 |
 
 ### T-054  [PASS]（全量代码审计，Owner 指令）
 - 时间戳: 2026-11-17T12:31:00Z
