@@ -459,6 +459,27 @@
 - 关联 bug: 无
 - 备注: 设计质量高：Append/Enqueue 接收调用方 tx——同事务原子性靠构造保证而非纪律；publisher 三段式（只读池取批/事务外 Publish/单写者标记）+ WHERE published=0 幂等守卫 + 持久化指数退避。info 一条见 Q-18（至少一次语义的消费者幂等要求，Day 40 SSE 接入时需去重）
 
+### T-040  [PASS]
+- 时间戳: 2026-11-17T07:45:00Z
+- 对应: Day 11（dev-plan/day-11.md §7，提交 aa12f99，定时监控触发） / 里程碑 M1
+- 测试项: Day 11 默认套件 + 真库专项（同 key 重试/并发/revision 冲突）
+- 命令: `go build/vet/test ./... -count=1` + `go test -tags sqlite_modernc ./internal/control/... -v`
+- 预期: 全绿（§7 三条全覆盖）
+- 实际: 11 包全绿；control 真库全过（含新增 idempotency 测试组 + 全部既有回归）
+- 结果: PASS
+- 关联 bug: 无
+
+### T-041  [PASS]
+- 时间戳: 2026-11-17T07:52:00Z
+- 对应: Day 11（对抗探针 + 代码审计） / 里程碑 M1
+- 测试项: 幂等语义五分支行为级验证：①首次非回放 ②同 key 同 digest 重试回放且**不重执行 fn**（执行计数器佐证）refs 相同 ③同 key 不同 digest → ErrConflict ④**fn 失败整体回滚**（无命令行无对象）后同 key 重试**真正重执行** ⑤8 goroutine 并发同 key → fn 恰执行 1 次全员同 refs；commands.go 审读
+- 命令: 临时探针（internal/control/zz_probe_test.go，已删）`go test -tags sqlite_modernc -run TestProbe -v`
+- 预期: 全部分支符合 §15.7 语义
+- 实际: 5/5 全过——含最容易做错的 ④（失败回滚后重试必须真正重执行，网络超时重试正确性的根基）
+- 结果: PASS
+- 关联 bug: 无
+- 备注: 实现质量高：单事务「查重→fn→记账」+ 单写者串行消除 SELECT-then-act 竞争 + PK 末端兜底；GuardRevision 表名白名单防注入；Transition 终态不可变 + COALESCE 保 refs。零新审计发现（Q-18 之外无新增）
+
 ---
 
 ## 代码质量审计（2026-11-16 首轮，随测试执行，Owner 指令新增）
