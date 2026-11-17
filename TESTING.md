@@ -437,6 +437,28 @@
 - 关联 bug: 无
 - 备注: Q-17 关闭——开发方未等 Day 17 直接以 fail-closed 方式处置（守卫叠加存活性），比留跟踪项更稳。Day 09 审计零未决项
 
+### T-038  [PASS]
+- 时间戳: 2026-11-17T04:12:00Z
+- 对应: Day 10（dev-plan/day-10.md §7，提交 c8cebaf，定时监控触发） / 里程碑 M1
+- 测试项: Day 10 默认套件 + 真库专项（回滚无事件/提交有序/publisher 重试不丢）
+- 命令: `go build/vet/test ./... -count=1` + `go test -tags sqlite_modernc ./internal/events/... ./internal/outbox/... -v`
+- 预期: 全绿（§7 三条全覆盖）
+- 实际: 11 包全绿；events 2/2（TestAppendSequencesMonotonic / TestAppendRollbackNoEvent）+ outbox 3/3（TestStoreThenPublish / TestRollbackNoMessage / TestPublisherRetryNoLoss）
+- 结果: PASS
+- 关联 bug: 无
+- 备注: 0004 迁移守不可变约定；global_sequence 的 spec 口径差（§4.2 只列 run 内 sequence vs §15.6/§3151 要求全局序）处理有据（向前补齐并注释）
+
+### T-039  [PASS]
+- 时间戳: 2026-11-17T04:18:00Z
+- 对应: Day 10（组合探针 + 代码审计） / 里程碑 M1
+- 测试项: 真实用法组合验证：领域变更+events.Append+outbox.Enqueue **同一事务**——提交侧全落、回滚侧（事务尾 FK 违反）全无且 run revision 不动；Drain 恰好一次 + 二次 Drain 为 0（幂等标记）；events.go/outbox.go/bus.go/publisher.go 审读
+- 命令: 临时探针（internal/outbox/zz_probe_test.go，已删）`go test -tags sqlite_modernc -run TestProbeComposite -v`
+- 预期: 组合原子性成立
+- 实际: PASS——提交侧 ev=1/ob=1，回滚侧 ev=0/ob=0/revision=1（未动）；Drain n=1、bus 收 1、二次 Drain n=0
+- 结果: PASS
+- 关联 bug: 无
+- 备注: 设计质量高：Append/Enqueue 接收调用方 tx——同事务原子性靠构造保证而非纪律；publisher 三段式（只读池取批/事务外 Publish/单写者标记）+ WHERE published=0 幂等守卫 + 持久化指数退避。info 一条见 Q-18（至少一次语义的消费者幂等要求，Day 40 SSE 接入时需去重）
+
 ---
 
 ## 代码质量审计（2026-11-16 首轮，随测试执行，Owner 指令新增）
@@ -462,6 +484,7 @@
 | Q-15 | 中 | internal/control/states.yaml × spec §5.1/§9.7 | **迁移表缺 spec 规定的转移（T-030 行为级证实 6 项）**：① pause 仅 RUNNING 可入 PAUSING，§9.7 要求所有非终态（QUEUED/BLOCKED/RESUMING 等 9 态实测被拒）——用户暂停排队中的 Run 会被 ErrInvalid 拒绝；② BLOCKED→PARTIAL 缺失，§5.1 L1348 明文审批期到期允许 PARTIAL/STOPPING/FAILED；③ **EXITING→RUNNING 缺失（无对应事件）**，§5.1 L1336 门禁发现新工作须回 RUNNING——缺它则退出门禁循环断裂，EXITING 误成准终态；④ RUNNING→COMPLETED 直达口径待与 spec 确认（L1351）。属性测试检不出：它只验证实现符合 states.yaml，不验证表符合 spec | states.yaml 补转移行（pause 扩 from 列表、加 partial 的 BLOCKED 来源、加 exit_reopen: EXITING→RUNNING 事件）→ `go generate` → 补 TestKeyTransitions 锚点。趁 controller 调用方尚未依赖「拒绝」行为时改最便宜；③是功能缺口，①②是用户可感行为偏差。**复测（T-031）：已修复关闭**——68e8f27 迁移 34→45：pause 扩至 9 非终态（STOPPING 报备排除：stop 不可逆）、BLOCKED/RUNNING→PARTIAL、reopen: EXITING→RUNNING；④ 采纳「EXITING 单路径 + controller 原子性」解读（图示本为单路径，成立） |
 | Q-16 | 低 | internal/control/job_states.yaml WAITING_APPROVAL | 审批**被拒或过期**后 Job 的出口未定义：SM 只有 approve→RUNNING 一条出边，DENIED/EXPIRED 的审批对应 Job 只能靠用户 cancel 或 fail 终结。spec 侧也空白（只有 L3085 deny API 端点，无 Job 去向语义）——审批流 Day 15/17 要用 | Day 15 前补：SM 加 denied: WAITING_APPROVAL→CANCELLED（cancel_code=PLANNER_SUPERSEDED 或专用码）与 expired 边，或 spec 侧先定义语义；属 spec 空白而非实现违规。**复测（T-034）：已处置关闭（被拒半边）**——4941a04 加 deny: WAITING_APPROVAL→RUNNING，理由成立（被动等待态不自行终结、去留由规划器重排，不把争议语义冻进 SM）；**过期半边有意留白到 Day 15**（耦合 Policy Engine，且 cancel/fail 恒为安全出口无活性缺陷），届时随 Day 15 验收 |
 | Q-17 | info | internal/scheduler/claim.go guardFencingTx | fencing 守卫只校验「令牌=当代」，不查 Job 状态：CANCELLED/FAILED 等终态 Job 的当代令牌仍能通过 CheckFencing/WriteAttemptResult/Renew（T-036 P4 实测确认）。当前无实际危害（终态 Job 无后续写路径）；Day 17 Permit 发放、Day 18 Proxy 校验若复用 guardFencingTx 判「可写」，会放行已终态 Job 的请求 | Day 17 设计 Permit 校验时叠加 Job 存活性（state 非终态）检查；或在 guardFencingTx 加可选参数。届时随 Day 17 验收。**复测（T-037）：已修复关闭（提前处置）**——9c2b285 guardFencingTx fail-closed 叠加存活性：终态 Job 令牌匹配也拒写，三路（Check/Write/Renew）实测全拒 |
+| Q-18 | info | internal/outbox（设计语义，非缺陷） | outbox 为**至少一次**投递：bus.Publish 成功但 markPublished 前崩溃 → 重启后重投（WHERE published=0 守卫决定）；多实例 Publisher 也会重复投递。代码注释已声明该语义 | Day 40 SSE 接入时消费者按 event id / sequence 去重（SSE 客户端 event id 已有全局序可用）；单实例部署假设写入运维约定。届时随 Day 40 验收 |
 
 **做得好的（保持）**：迁移器版本记录与 DDL 同事务（原子）；建表按依赖序 + Down 严格逆序；Day 02 复合外键设计纯净（无冗余单列 FK）；全部查询参数化；t.TempDir/t.Cleanup 测试卫生；PRAGMA 走 DSN（per-connection，不踩连接池坑）；注释全程带 spec 引用可回溯；BUG-001 教训已固化进 .gitignore 注释。
 
