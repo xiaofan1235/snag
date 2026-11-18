@@ -143,4 +143,18 @@ describe("App 外壳与导航", () => {
     expect(await screen.findByRole("complementary", { name: "检视器" })).toBeInTheDocument();
     expect(screen.getByTestId("inspector")).toBeInTheDocument();
   });
+
+  it("切换页面时右栏 Inspector 自动关闭（不残留上一页对象）", async () => {
+    window.location.hash = "/runs/run-1/graph";
+    renderApp();
+    // 点击探索图谱节点 → 打开 Inspector。
+    await userEvent.click(await screen.findByRole("button", { name: /IDOR on \/orders/ }));
+    expect(await screen.findByRole("complementary", { name: "检视器" })).toBeInTheDocument();
+    // 切到「作战台」主模式（路由变化）。
+    const modebar = screen.getByRole("tablist", { name: "Run 作战模式" });
+    await userEvent.click(within(modebar).getByRole("tab", { name: /作战台/ }));
+    // 导航完成后 Inspector 应已关闭，不残留。
+    expect(await screen.findByText("录制流量")).toBeInTheDocument();
+    expect(screen.queryByRole("complementary", { name: "检视器" })).not.toBeInTheDocument();
+  });
 });

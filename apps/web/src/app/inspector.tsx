@@ -1,8 +1,9 @@
 // inspector.tsx —— 右栏 Inspector 的全局上下文（UI 文档 D3）。任何页面可 show(model) 推送对象详情到右栏，
 // close() 收起。跨对象跳转（Finding↔Evidence↔Action↔Job↔Exchange）统一经此（D4）。
 
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { InspectorModel } from "../components/domain/Inspector";
+import { usePath } from "./router";
 
 interface InspectorCtx {
   model: InspectorModel | null;
@@ -17,6 +18,17 @@ export function InspectorProvider({ children }: { children: ReactNode }) {
   const [model, setModel] = useState<InspectorModel | null>(null);
   const show = useCallback((m: InspectorModel) => setModel(m), []);
   const close = useCallback(() => setModel(null), []);
+
+  // 路由切换时关闭右栏 Inspector：它挂在全局外壳层，不随页面卸载，否则会残留上一页的对象详情。
+  // 用 ref 跳过首挂载，避免初次渲染时多一次无谓的 setState。
+  const path = usePath();
+  const firstPath = useRef(path);
+  useEffect(() => {
+    if (firstPath.current === path) return;
+    firstPath.current = path;
+    setModel(null);
+  }, [path]);
+
   const value = useMemo<InspectorCtx>(() => ({ model, show, close, isOpen: model != null }), [model, show, close]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

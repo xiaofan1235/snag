@@ -2,7 +2,7 @@
 // 顶部主模式：指挥台（会话树+编排对话）/ 探索图谱 / 作战台 / 守卫；「细节」模式收纳原 15 页二级导航。
 // 跨对象跳转统一经右栏 Inspector（Finding↔Evidence↔Verifier↔Endpoint）。
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Overview, ActivityStream, FindingDetail, CoverageMatrix, ReportCenter } from "../features";
 import { AgentSessionPanel } from "../features/activity/ActivityStream";
 import {
@@ -167,6 +167,11 @@ function RunDetail({ runId, seg }: { runId: string; seg: string }) {
   const toast = useToast();
   const [sessionOpen, setSessionOpen] = useState(false);
   const detailSeg = RUN_NAV.some((n) => n.seg === seg) ? seg : RUN_DETAIL_DEFAULT;
+
+  // 细节段切换时收起 Agent 会话抽屉（它只在 activity 段渲染，否则返回 activity 会残留重现）。
+  useEffect(() => {
+    setSessionOpen(false);
+  }, [seg]);
 
   return (
     <>
