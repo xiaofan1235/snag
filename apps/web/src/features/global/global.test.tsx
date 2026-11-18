@@ -8,9 +8,16 @@ import { InboxPage } from "./InboxPage";
 import { mkResources, mkOperations, mkSettings, mkInbox } from "../../app/mockGlobal";
 
 describe("资源三分面板（§16.20，知识库 / 技能 / 工具）", () => {
-  it("知识库：可信级别呈现", () => {
+  it("知识库：列表 + 默认渲染首个文档（Markdown）", () => {
     render(<KnowledgePanel items={mkResources.knowledge} />);
-    expect(screen.getByText("VERIFIED_FACT")).toBeInTheDocument();
+    expect(screen.getByText("VERIFIED_FACT")).toBeInTheDocument(); // 右侧元信息
+    // 默认选中首个文档，其 Markdown 标题（h1）被渲染。
+    expect(screen.getByRole("heading", { level: 1, name: /对象归属缺陷/ })).toBeInTheDocument();
+  });
+  it("知识库：切换文档更新阅读器", async () => {
+    render(<KnowledgePanel items={mkResources.knowledge} />);
+    await userEvent.click(screen.getByText("Express 常见 IDOR 模式"));
+    expect(screen.getByRole("heading", { level: 1, name: /Express 常见 IDOR 模式/ })).toBeInTheDocument();
   });
   it("技能：列出技能", () => {
     render(<SkillsPanel items={mkResources.skills} />);

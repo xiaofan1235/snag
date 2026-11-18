@@ -24,4 +24,6 @@ export type { ToastItem, ToastTone } from "./Toast";
 export { ConnectionStatus } from "./ConnectionStatus";
 export { Tabs } from "./Tabs";
 export type { TabsProps, TabItem } from "./Tabs";
+export { Markdown } from "./Markdown";
+export type { MarkdownProps } from "./Markdown";
 export { cx } from "./cx";
