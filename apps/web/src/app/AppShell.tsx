@@ -1,5 +1,6 @@
-// AppShell —— 应用三区布局（UI 文档 D3）：顶 Agent 状态条 / 左导航 / 中内容 / 右 Inspector / 底部栏。
-// 左导航带待办角标；右 Inspector 随选中对象；底部为指令输入 + 连接同步状态。
+// AppShell —— 应用布局（UI 文档 D3 调整版）：顶 Agent 状态条 / 左导航 / 中内容 / 右 Inspector。
+// 左导航带待办角标；右 Inspector 随选中对象。原底部全局「指令输入」已删除（无功能且全局无 run
+// 归属，语义含糊）——下发指令改由指挥台「与 Agent 对话」按 run/聚焦 Agent 进行；连接同步状态并入顶栏。
 
 import type { ReactNode } from "react";
 import { GLOBAL_NAV } from "./nav";
@@ -8,7 +9,6 @@ import { useInspector } from "./inspector";
 import { Inspector } from "../components/domain/Inspector";
 import { Button } from "../components/Button";
 import { ConnectionStatus } from "../components/ConnectionStatus";
-import { Input } from "../components/Input";
 import { previewAgentStatus, previewDashboard } from "./mockData";
 import { useTheme } from "./theme";
 
@@ -46,6 +46,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         <span className="sep">·</span>
         <span style={{ display: "flex", alignItems: "center", gap: "var(--sp-1)" }}>
           代理 <ConnectionStatus state={st.proxy === "RUNNING" ? "LIVE" : "STALE"} />
+        </span>
+        <span className="sep">·</span>
+        <span style={{ display: "flex", alignItems: "center", gap: "var(--sp-1)" }}>
+          同步 <ConnectionStatus state="LIVE" />
         </span>
         <span style={{ marginLeft: "auto", display: "flex", gap: "var(--sp-2)" }}>
           <Button size="sm" variant="ghost" onClick={toggleTheme} aria-label="切换主题">
@@ -93,14 +97,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           </aside>
         )}
       </div>
-
-      {/* 底：指令输入 + 连接同步状态（可收起由 P3 补） */}
-      <footer className="app-footer">
-        <div className="cmd">
-          <Input placeholder="输入受控指令（危险命令仍走审批）…" aria-label="指令输入" />
-        </div>
-        <ConnectionStatus state="LIVE" />
-      </footer>
     </div>
   );
 }

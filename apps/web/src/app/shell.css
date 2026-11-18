@@ -2,7 +2,7 @@
 
 .app-shell {
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto 1fr;
   height: 100vh;
   background: var(--bg-canvas);
   color: var(--ink-1);
@@ -153,20 +153,6 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--sp-3);
-}
-
-/* 底：可收起（指令输入 / 连接状态） */
-.app-footer {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  height: 48px;
-  padding: 0 var(--sp-4);
-  background: var(--bg-surface);
-  border-top: 1px solid var(--border-subtle);
-}
-.app-footer .cmd {
-  flex: 1;
 }
 
 /* Run 工作台子导航（横向 tabs） */

@@ -40,10 +40,11 @@ describe("matchRoute", () => {
 });
 
 describe("App 外壳与导航", () => {
-  it("渲染三区外壳：状态条 + 主导航 + 底部指令输入", () => {
+  it("渲染外壳：状态条 + 主导航（底栏指令输入已移除）", () => {
     renderApp();
     expect(screen.getByRole("navigation", { name: "主导航" })).toBeInTheDocument();
-    expect(screen.getByLabelText("指令输入")).toBeInTheDocument();
+    // 底部全局「指令输入」已删除（无功能且语义含糊；指令改由指挥台对话输入按 run/Agent 下发）。
+    expect(screen.queryByLabelText("指令输入")).not.toBeInTheDocument();
     // 状态条里有 Epoch。
     expect(screen.getByText(/Epoch 3/)).toBeInTheDocument();
   });
