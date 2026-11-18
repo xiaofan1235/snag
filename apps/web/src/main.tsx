@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "./styles/tokens.css";
 import "./components/components.css";
 import "./app/shell.css";
+import "./styles/command.css";
 import { App } from "./app/App";
 import { RouterProvider } from "./app/router";
 import { InspectorProvider } from "./app/inspector";

@@ -54,6 +54,13 @@ describe("App 外壳与导航", () => {
     expect(screen.getByText("需要我处理")).toBeInTheDocument();
   });
 
+  it("值班台顶部渲染作战总览（跨 Run 指标 + Token 消耗图）", () => {
+    renderApp();
+    const overview = screen.getByRole("region", { name: "作战总览" });
+    expect(within(overview).getByText("活跃 Run")).toBeInTheDocument();
+    expect(within(overview).getByRole("img", { name: "Token 消耗柱状图" })).toBeInTheDocument();
+  });
+
   it("点击左导航 Runs → 进入 Runs 列表", async () => {
     renderApp();
     const nav = screen.getByRole("navigation", { name: "主导航" });
@@ -61,19 +68,32 @@ describe("App 外壳与导航", () => {
     expect(await screen.findByText("Runs 列表 / 历史")).toBeInTheDocument();
   });
 
-  it("从 Runs 列表点一个 Run → 进入工作台 Overview", async () => {
+  it("从 Runs 列表点一个 Run → 进入指挥台（作战模式，默认会话树）", async () => {
     window.location.hash = "/runs";
     renderApp();
     await userEvent.click(screen.getByText("acme.com 授权测试"));
-    // 工作台标题 + 子导航。
+    // 作战视图标题 + 主模式导航 + 指挥台默认内容（会话树）。
     expect(await screen.findByText(/Run run-1/)).toBeInTheDocument();
-    expect(screen.getByRole("tablist", { name: "Run 工作台" })).toBeInTheDocument();
+    expect(screen.getByRole("tablist", { name: "Run 作战模式" })).toBeInTheDocument();
+    expect(screen.getByRole("tree", { name: "Agent 会话" })).toBeInTheDocument();
   });
 
-  it("工作台子导航切到 Findings → 事实/推断分区呈现", async () => {
+  it("主模式切到「探索图谱 / 作战台 / 守卫」各渲染对应视图", async () => {
+    window.location.hash = "/runs/run-1/command";
+    renderApp();
+    const modebar = screen.getByRole("tablist", { name: "Run 作战模式" });
+    await userEvent.click(within(modebar).getByRole("tab", { name: /探索图谱/ }));
+    expect(await screen.findByRole("img", { name: "探索知识图谱" })).toBeInTheDocument();
+    await userEvent.click(within(modebar).getByRole("tab", { name: /作战台/ }));
+    expect(await screen.findByText("录制流量")).toBeInTheDocument();
+    await userEvent.click(within(modebar).getByRole("tab", { name: /守卫/ }));
+    expect(await screen.findByRole("tab", { name: /拦截规则/ })).toBeInTheDocument();
+  });
+
+  it("细节层子导航切到 Findings → 事实/推断分区呈现", async () => {
     window.location.hash = "/runs/run-1/overview";
     renderApp();
-    const subnav = screen.getByRole("tablist", { name: "Run 工作台" });
+    const subnav = screen.getByRole("tablist", { name: "Run 细节视图" });
     await userEvent.click(within(subnav).getByText("Findings"));
     expect(await screen.findByTestId("facts")).toBeInTheDocument();
     expect(screen.getByTestId("inferences")).toBeInTheDocument();

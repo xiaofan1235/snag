@@ -15,7 +15,7 @@ function resolve(path: string): React.ReactNode {
   const runSeg = matchRoute("/runs/:id/:seg", path);
   if (runSeg) return <RunWorkbench runId={runSeg.id} seg={runSeg.seg} />;
   const runOnly = matchRoute("/runs/:id", path);
-  if (runOnly) return <RunWorkbench runId={runOnly.id} seg="overview" />;
+  if (runOnly) return <RunWorkbench runId={runOnly.id} seg="command" />;
   if (matchRoute("/inbox", path)) return <InboxPage />;
   if (matchRoute("/resources", path)) return <ResourcesGlobalPage />;
   if (matchRoute("/operations", path)) return <OperationsGlobalPage />;

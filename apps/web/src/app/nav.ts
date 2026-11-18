@@ -1,13 +1,13 @@
-// nav.ts —— 界面地图（UI 文档 D4）。全局左导航 + Run 工作台子导航。
-// 全部页面已实现为完整 UI（§16.4–16.29），当前以预览/mock 数据驱动，真实数据待 daemon 接线。
-// implemented 标志保留：false 表示该页仍为只读空态占位（§16.34）。目前全部为 true。
+// nav.ts —— 界面地图（UI 文档 D4 + ARTEX 式编排中心重构）。全局左导航 + Run 主模式 + 细节子导航。
+// 重构（2026-11）：Run 工作台从 15 个平铺标签改为「主模式（指挥台/探索图谱/作战台/守卫）+ 细节层」。
+// 原 15 页全部保留，降为「细节」模式下的二级导航（不删，仅重组 §16.34 全部已实现）。
 
 export interface NavItem {
   to: string;
   label: string;
   icon: string; // 线性图标占位符号
   badge?: number; // 待办/阻塞角标
-  implemented?: boolean; // false → 空态占位页
+  implemented?: boolean; // false → 空态占位页（当前全部 true）
 }
 
 // 全局左导航（D4）。
@@ -21,11 +21,27 @@ export const GLOBAL_NAV: NavItem[] = [
   { to: "/settings", label: "Settings", icon: "⚑", implemented: true },
 ];
 
-// Run 工作台子导航（D4，进入某 Run 后）。runId 替换 :id。
 export interface RunNavItem extends NavItem {
   seg: string; // 路径段
 }
 
+// Run 主模式（ARTEX 式作战视图入口）。默认进入「指挥台」。
+export const RUN_MODES: RunNavItem[] = [
+  { seg: "command", to: "", label: "指挥台", icon: "◉", implemented: true },
+  { seg: "graph", to: "", label: "探索图谱", icon: "✦", implemented: true },
+  { seg: "deck", to: "", label: "作战台", icon: "▦", implemented: true },
+  { seg: "guard", to: "", label: "守卫", icon: "⛉", implemented: true },
+  { seg: "detail", to: "", label: "细节", icon: "≣", implemented: true },
+];
+
+// 主模式对应的实际视图段（「detail」是容器，落到具体细节段）。
+export const RUN_MODE_SEGS = ["command", "graph", "deck", "guard"] as const;
+export type RunModeSeg = (typeof RUN_MODE_SEGS)[number];
+export function isRunModeSeg(seg: string): seg is RunModeSeg {
+  return (RUN_MODE_SEGS as readonly string[]).includes(seg);
+}
+
+// 细节层二级导航（原 15 页，全部保留为细节视图）。
 export const RUN_NAV: RunNavItem[] = [
   { seg: "overview", to: "", label: "Overview", icon: "◉", implemented: true },
   { seg: "activity", to: "", label: "Activity", icon: "≡", implemented: true },
@@ -43,6 +59,11 @@ export const RUN_NAV: RunNavItem[] = [
   { seg: "report", to: "", label: "Report", icon: "▧", implemented: true },
   { seg: "timeline", to: "", label: "Timeline", icon: "◷", implemented: true },
 ];
+
+// Run 的默认进入段（主模式·指挥台）。
+export const RUN_DEFAULT_SEG = "command";
+// 「细节」模式点击时落到的默认细节段。
+export const RUN_DETAIL_DEFAULT = "overview";
 
 export function runNavTo(runId: string, seg: string): string {
   return `/runs/${runId}/${seg}`;

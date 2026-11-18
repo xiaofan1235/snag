@@ -4,6 +4,8 @@
 import { useState } from "react";
 import { Dashboard, RunWizard, type PreflightCheck } from "../features";
 import { ResourcesPage, OperationsPage, SettingsPage, InboxPage as FullInboxPage } from "../features/global";
+import { StatTile, TokenChart } from "../features/command";
+import { mkGlobalStats, mkGlobalTokenWindows, mkGlobalTokenSeries } from "./mockCommand";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { StatusBadge } from "../components/StatusBadge";
@@ -31,9 +33,19 @@ export function DashboardPage() {
   return (
     <>
       <PageHead title="值班台" />
+      {/* 作战总览（ARTEX 式跨 Run 一屏指标：Run/Agent/发现/资产/流量/Token + Token 消耗图） */}
+      <section className="sn-deck-overview" aria-label="作战总览">
+        <div className="sn-deck-stats">
+          {mkGlobalStats.map((s) => <StatTile key={s.key} stat={s} />)}
+        </div>
+        <section className="sn-panel" style={{ marginTop: "var(--sp-3)" }}>
+          <div className="sn-panel-head">Token 消耗（近 7 日，跨 Run）</div>
+          <TokenChart series={mkGlobalTokenSeries} windows={mkGlobalTokenWindows} />
+        </section>
+      </section>
       <Dashboard
         model={previewDashboard}
-        onOpen={(runId) => navigate(runNavTo(runId, "overview"))}
+        onOpen={(runId) => navigate(runNavTo(runId, "command"))}
         onResume={(r) => toast.push({ tone: "info", message: `已请求恢复 ${r}` })}
         onPause={(r) => toast.push({ tone: "warn", message: `已请求暂停 ${r}` })}
         onStop={(r) => toast.push({ tone: "danger", message: `已请求停止 ${r}` })}
@@ -52,7 +64,7 @@ export function RunsPage() {
       </div>
       <div style={{ display: "grid", gap: "var(--sp-2)" }}>
         {previewRuns.map((r) => (
-          <Card key={r.runId} clickable onClick={() => navigate(runNavTo(r.runId, "overview"))}>
+          <Card key={r.runId} clickable onClick={() => navigate(runNavTo(r.runId, "command"))}>
             <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-3)" }}>
               <strong>{r.name}</strong>
               <StatusBadge status={r.state} />
@@ -89,7 +101,7 @@ export function NewRunPage() {
         }}
         onStart={() => {
           toast.push({ tone: "ok", message: "Run 已创建并启动" });
-          navigate(runNavTo("run-1", "overview"));
+          navigate(runNavTo("run-1", "command"));
         }}
       />
     </>
