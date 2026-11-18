@@ -16,7 +16,9 @@ export const GLOBAL_NAV: NavItem[] = [
   { to: "/runs", label: "运行", icon: "▤", implemented: true },
   { to: "/runs/new", label: "新建运行", icon: "＋", implemented: true },
   { to: "/inbox", label: "收件箱", icon: "✉", implemented: true },
-  { to: "/resources", label: "资源库", icon: "▦", implemented: true },
+  { to: "/knowledge", label: "知识库", icon: "▦", implemented: true },
+  { to: "/skills", label: "技能", icon: "✦", implemented: true },
+  { to: "/tools", label: "工具", icon: "⚒", implemented: true },
   { to: "/operations", label: "运维", icon: "⚙", implemented: true },
   { to: "/settings", label: "设置", icon: "⚑", implemented: true },
 ];

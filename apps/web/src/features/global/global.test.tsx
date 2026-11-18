@@ -1,18 +1,24 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { ResourcesPage } from "./ResourcesPage";
+import { KnowledgePanel, SkillsPanel, ToolsPanel } from "./ResourcesPage";
 import { OperationsPage } from "./OperationsPage";
 import { SettingsPage } from "./SettingsPage";
 import { InboxPage } from "./InboxPage";
 import { mkResources, mkOperations, mkSettings, mkInbox } from "../../app/mockGlobal";
 
-describe("ResourcesPage（§16.20）", () => {
-  it("Knowledge 可信级别 + Skills/Templates Tab", async () => {
-    render(<ResourcesPage model={mkResources} />);
+describe("资源三分面板（§16.20，知识库 / 技能 / 工具）", () => {
+  it("知识库：可信级别呈现", () => {
+    render(<KnowledgePanel items={mkResources.knowledge} />);
     expect(screen.getByText("VERIFIED_FACT")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("tab", { name: /技能/ }));
+  });
+  it("技能：列出技能", () => {
+    render(<SkillsPanel items={mkResources.skills} />);
     expect(screen.getByText("idor-probe")).toBeInTheDocument();
+  });
+  it("工具（原运行模板）：列出模板", () => {
+    render(<ToolsPanel items={mkResources.templates} />);
+    expect(screen.getByText(mkResources.templates[0].name)).toBeInTheDocument();
   });
 });
 

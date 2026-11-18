@@ -1,5 +1,5 @@
 // 全局页面（UI 文档 §16.20/§16.23/§16.24–16.29）统一出口。
-export { ResourcesPage } from "./ResourcesPage";
+export { KnowledgePanel, SkillsPanel, ToolsPanel } from "./ResourcesPage";
 export type { ResourcesModel, KnowledgeItem, SkillItem, RunTemplate } from "./ResourcesPage";
 export { OperationsPage } from "./OperationsPage";
 export type { OperationsModel, ProviderItem, ModelProfile, IdentityItem, EgressPool, SandboxItem, ToolReg, DiagnosticsItem } from "./OperationsPage";

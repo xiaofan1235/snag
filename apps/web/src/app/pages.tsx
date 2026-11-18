@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { Dashboard, RunWizard, type PreflightCheck } from "../features";
-import { ResourcesPage, OperationsPage, SettingsPage, InboxPage as FullInboxPage } from "../features/global";
+import { KnowledgePanel, SkillsPanel, ToolsPanel, OperationsPage, SettingsPage, InboxPage as FullInboxPage } from "../features/global";
 import { StatTile, TokenChart } from "../features/command";
 import { mkGlobalStats, mkGlobalTokenWindows, mkGlobalTokenSeries } from "./mockCommand";
 import { Card } from "../components/Card";
@@ -126,11 +126,29 @@ export function InboxPage() {
   );
 }
 
-export function ResourcesGlobalPage() {
+export function KnowledgeGlobalPage() {
   return (
     <>
-      <PageHead title="资源库（知识 / 技能 / 模板）" />
-      <ResourcesPage model={mkResources} />
+      <PageHead title="知识库" />
+      <KnowledgePanel items={mkResources.knowledge} />
+    </>
+  );
+}
+
+export function SkillsGlobalPage() {
+  return (
+    <>
+      <PageHead title="技能" />
+      <SkillsPanel items={mkResources.skills} />
+    </>
+  );
+}
+
+export function ToolsGlobalPage() {
+  return (
+    <>
+      <PageHead title="工具" />
+      <ToolsPanel items={mkResources.templates} />
     </>
   );
 }

@@ -112,11 +112,16 @@ describe("App 外壳与导航", () => {
     expect(screen.getByRole("button", { name: "批准一次" })).toBeInTheDocument();
   });
 
-  it("Resources 页渲染（Knowledge/Skills/Templates）", async () => {
-    window.location.hash = "/resources";
+  it("知识库 / 技能 / 工具 三个独立页（从左导航进入）", async () => {
+    window.location.hash = "/knowledge";
     renderApp();
-    expect(await screen.findByText(/资源库（知识/)).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "知识" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "知识库" })).toBeInTheDocument();
+    expect(screen.getByText("VERIFIED_FACT")).toBeInTheDocument();
+    const nav = screen.getByRole("navigation", { name: "主导航" });
+    await userEvent.click(within(nav).getByText("技能"));
+    expect(await screen.findByRole("heading", { name: "技能" })).toBeInTheDocument();
+    await userEvent.click(within(nav).getByText("工具"));
+    expect(await screen.findByRole("heading", { name: "工具" })).toBeInTheDocument();
   });
 
   it("Operations 页渲染（Providers/Egress/Sandbox/Diagnostics）", async () => {
