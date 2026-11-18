@@ -51,15 +51,21 @@
 }
 
 /* ============ 指挥台布局（会话树 | 编排对话） ============ */
+/* 指挥台占满 app-main 剩余高度，自身不溢出；滚动交给内部（会话树 / 对话流）。 */
 .sn-command-layout {
   display: grid;
   grid-template-columns: 264px 1fr;
+  grid-template-rows: minmax(0, 1fr);
   gap: var(--sp-6);
-  align-items: start;
+  flex: 1;
   min-height: 0;
 }
 @media (max-width: 900px) {
-  .sn-command-layout { grid-template-columns: 1fr; }
+  .sn-command-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+    flex: none;
+  }
 }
 
 /* ============ 共享小件 ============ */
@@ -124,8 +130,8 @@
   background: transparent;
   border: none;
   padding: 0;
-  position: sticky;
-  top: 0;
+  min-height: 0;
+  overflow-y: auto;
 }
 .sn-sessiontree-head {
   display: flex;
@@ -208,8 +214,8 @@
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius);
-  min-height: 420px;
-  max-height: calc(100vh - 220px);
+  min-height: 0;
+  height: 100%;
 }
 .sn-orch-head {
   display: flex;

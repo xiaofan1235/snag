@@ -109,11 +109,14 @@
   padding: var(--sp-3) var(--sp-3) var(--sp-1);
 }
 
-/* 中内容：更慷慨的留白，内容靠空白与层级分区，而非盒子 */
+/* 中内容：更慷慨的留白，内容靠空白与层级分区，而非盒子。
+   flex 列：普通页自然堆叠溢出即滚动；需要「固定满高、内部滚动」的页（如指挥台）可用 flex:1 占满。 */
 .app-main {
   overflow-y: auto;
   padding: var(--sp-6) var(--sp-8);
   min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 @media (max-width: 900px) {
   .app-main {
