@@ -74,10 +74,12 @@ export function ExplorationGraph({ model, onSelect }: ExplorationGraphProps) {
         ))}
       </div>
       <div className="sn-graph-scroll">
+        {/* 响应式：铺满整块白板，按比例缩放适配（meet：不裁剪、不拉伸）。图谱大则缩放塞满、小则放大充满。 */}
         <svg
           viewBox={`0 0 ${width} ${height}`}
-          width={width}
-          height={height}
+          width="100%"
+          height="100%"
+          preserveAspectRatio="xMidYMid meet"
           role="img"
           aria-label="探索知识图谱"
           className="sn-graph-svg"

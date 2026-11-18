@@ -293,7 +293,12 @@
 .sn-orch-compose textarea { flex: 1; resize: vertical; }
 
 /* ============ 探索图谱 ============ */
+/* 白板铺满 app-main 剩余高度到底部；拓扑按比例缩放塞满整块（见 .sn-graph-svg）。 */
 .sn-graph {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius);
@@ -324,8 +329,8 @@
 .sn-graph-legend-item[data-edge="yields"] { color: var(--info); }
 .sn-graph-legend-item[data-edge="proves"] { color: var(--accent); }
 
-.sn-graph-scroll { overflow: auto; max-width: 100%; }
-.sn-graph-svg { display: block; }
+.sn-graph-scroll { flex: 1; min-height: 0; overflow: hidden; }
+.sn-graph-svg { display: block; width: 100%; height: 100%; }
 
 .sn-graph-arrow { fill: var(--ink-3); }
 .sn-gedge {
