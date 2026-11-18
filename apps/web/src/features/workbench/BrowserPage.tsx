@@ -33,7 +33,7 @@ export function BrowserPage({ model, onTakeover }: { model: BrowserModel; onTake
   return (
     <div className="sn-three-col" style={{ gridTemplateColumns: "240px 1fr" }}>
       <div className="sn-col-scroll">
-        <div style={{ color: "var(--ink-3)", fontSize: "var(--fs-xs)", marginBottom: "var(--sp-1)" }}>Browser Session</div>
+        <div style={{ color: "var(--ink-3)", fontSize: "var(--fs-xs)", marginBottom: "var(--sp-1)" }}>浏览器会话</div>
         {model.sessions.map((s) => (
           <button key={s.id} className="sn-btn sn-focus" data-variant={sel?.id === s.id ? "secondary" : "ghost"} data-size="sm"
             style={{ width: "100%", justifyContent: "space-between", marginBottom: 2 }} onClick={() => setSel(s)}>
@@ -51,7 +51,7 @@ export function BrowserPage({ model, onTakeover }: { model: BrowserModel; onTake
             </div>
             <Tabs
               items={[
-                { id: "shots", label: "Screenshots", content: (
+                { id: "shots", label: "截图", content: (
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: "var(--sp-2)" }}>
                     {sel.screenshots.map((sh, i) => (
                       <Card key={i}>
@@ -61,14 +61,14 @@ export function BrowserPage({ model, onTakeover }: { model: BrowserModel; onTake
                     ))}
                   </div>
                 ) },
-                { id: "dom", label: "DOM Snapshot", content: <pre className="mono sn-terminal" style={{ background: "var(--bg-sunken)", color: "var(--ink-1)" }}>{sel.domSnapshot}</pre> },
-                { id: "net", label: "Network（经 Proxy 留证）", content: (
+                { id: "dom", label: "DOM 快照", content: <pre className="mono sn-terminal" style={{ background: "var(--bg-sunken)", color: "var(--ink-1)" }}>{sel.domSnapshot}</pre> },
+                { id: "net", label: "网络（经代理留证）", content: (
                   <table className="sn-table"><thead><tr><th>Method</th><th>URL</th><th>Status</th></tr></thead>
                     <tbody>{sel.network.map((n, i) => (<tr key={i}><td>{n.method}</td><td className="mono" style={{ fontSize: "var(--fs-xs)" }}>{n.url}</td><td>{n.status}</td></tr>))}</tbody>
                   </table>
                 ) },
-                { id: "console", label: "Console", content: <pre className="sn-terminal">{sel.console.join("\n")}</pre> },
-                { id: "cookie", label: "Cookie/Storage", content: (
+                { id: "console", label: "控制台", content: <pre className="sn-terminal">{sel.console.join("\n")}</pre> },
+                { id: "cookie", label: "Cookie / 存储", content: (
                   <table className="sn-table"><thead><tr><th>名称</th><th>作用域</th><th>过期</th><th>脱敏摘要</th></tr></thead>
                     <tbody>{sel.cookies.map((c, i) => (<tr key={i}><td className="mono">{c.name}</td><td>{c.scope}</td><td>{c.expires}</td><td className="mono">{c.redactedSummary}</td></tr>))}</tbody>
                   </table>
@@ -77,7 +77,7 @@ export function BrowserPage({ model, onTakeover }: { model: BrowserModel; onTake
             />
           </>
         ) : (
-          <div className="sn-empty">无 Browser Session</div>
+          <div className="sn-empty">无浏览器会话</div>
         )}
       </div>
 

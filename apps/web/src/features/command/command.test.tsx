@@ -38,16 +38,18 @@ describe("OrchestrationChat（编排对话 + 人工转向）", () => {
     expect(screen.getByRole("log", { name: "推理流" })).toBeInTheDocument();
     // 分型徽标存在（待审批）。
     expect(screen.getAllByText("待审批").length).toBeGreaterThan(0);
-    const box = screen.getByLabelText("转向指令");
+    const box = screen.getByLabelText("与 AI 对话输入");
     await userEvent.type(box, "聚焦 /api/orders");
-    await userEvent.click(screen.getByRole("button", { name: "下发" }));
+    await userEvent.click(screen.getByRole("button", { name: "发送" }));
     expect(onSteer).toHaveBeenCalledWith("w1", "聚焦 /api/orders");
     expect((box as HTMLTextAreaElement).value).toBe("");
+    // 发送后，人工消息进入对话流（两段：你 + Agent 回执）。
+    expect(screen.getByText(/【你】聚焦 \/api\/orders/)).toBeInTheDocument();
   });
 
   it("不可转向时输入禁用", () => {
     render(<OrchestrationChat model={{ ...mkOrchestration, canSteer: false }} focusedTitle="x" />);
-    expect(screen.getByLabelText("转向指令")).toBeDisabled();
+    expect(screen.getByLabelText("与 AI 对话输入")).toBeDisabled();
   });
 
   it("「仅聚焦」范围过滤到聚焦 Agent", async () => {

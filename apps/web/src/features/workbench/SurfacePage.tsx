@@ -59,7 +59,7 @@ export function SurfacePage({ model, onEndpointClick, onDiscoveryDirective }: Su
       <div className="sn-table-wrap">
         <table className="sn-table">
           <thead>
-            <tr><th>模块</th><th>Method</th><th>URL</th><th>认证</th><th>状态码</th><th>参数</th><th>Finding</th><th>覆盖</th><th>范围</th></tr>
+            <tr><th>模块</th><th>方法</th><th>URL</th><th>认证</th><th>状态码</th><th>参数</th><th>发现</th><th>覆盖</th><th>范围</th></tr>
           </thead>
           <tbody>
             {filtered.map((e) => (
@@ -96,7 +96,7 @@ export function SurfacePage({ model, onEndpointClick, onDiscoveryDirective }: Su
           <div style={{ display: "flex", gap: "var(--sp-2)", marginTop: "var(--sp-2)" }}>
             <Button size="sm" variant="secondary" onClick={() => onDiscoveryDirective?.(d.id, "evaluate")}>交给 Strategist 评估</Button>
             <Button size="sm" variant="ghost" onClick={() => onDiscoveryDirective?.(d.id, "duplicate")}>标记重复</Button>
-            <Button size="sm" variant="ghost" onClick={() => onDiscoveryDirective?.(d.id, "dismiss")}>Dismiss</Button>
+            <Button size="sm" variant="ghost" onClick={() => onDiscoveryDirective?.(d.id, "dismiss")}>忽略</Button>
           </div>
         </Card>
       ))}
@@ -106,8 +106,8 @@ export function SurfacePage({ model, onEndpointClick, onDiscoveryDirective }: Su
   return (
     <Tabs
       items={[
-        { id: "endpoints", label: "Endpoints", content: endpointsTab },
-        { id: "discovery", label: "Discovery Inbox", badge: model.discoveries.filter((d) => d.followState !== "dismissed").length, content: discoveryTab },
+        { id: "endpoints", label: "端点", content: endpointsTab },
+        { id: "discovery", label: "发现收件箱", badge: model.discoveries.filter((d) => d.followState !== "dismissed").length, content: discoveryTab },
       ]}
     />
   );

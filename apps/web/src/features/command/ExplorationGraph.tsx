@@ -6,7 +6,7 @@ import type { ExplorationGraphModel, GraphNode, GraphNodeKind } from "./types";
 
 const LAYER_ORDER: GraphNodeKind[] = ["goal", "intent", "fact", "finding"];
 const KIND_LABEL: Record<GraphNodeKind, string> = { goal: "目标", intent: "意图", fact: "事实", finding: "发现" };
-const EDGE_LABEL = { spawns: "spawns", yields: "yields", proves: "proves" } as const;
+const EDGE_LABEL = { spawns: "派生", yields: "产出", proves: "证实" } as const;
 
 const NODE_W = 168;
 const NODE_H = 48;

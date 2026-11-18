@@ -58,9 +58,9 @@ export function RunsPage() {
   const navigate = useNavigate();
   return (
     <>
-      <PageHead title="Runs 列表 / 历史" />
+      <PageHead title="运行列表 / 历史" />
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "var(--sp-3)" }}>
-        <Button variant="primary" onClick={() => navigate("/runs/new")}>新建 Run</Button>
+        <Button variant="primary" onClick={() => navigate("/runs/new")}>新建运行</Button>
       </div>
       <div style={{ display: "grid", gap: "var(--sp-2)" }}>
         {previewRuns.map((r) => (
@@ -92,7 +92,7 @@ export function NewRunPage() {
   const [pf, setPf] = useState<PreflightCheck[]>([]);
   return (
     <>
-      <PageHead title="新建 Run" crumbs={<a href="#/runs">Runs</a>} />
+      <PageHead title="新建运行" crumbs={<a href="#/runs">运行</a>} />
       <RunWizard
         preflight={pf}
         onRunPreflight={() => {
@@ -112,7 +112,7 @@ export function InboxPage() {
   const toast = useToast();
   return (
     <>
-      <PageHead title="Inbox 收件箱" />
+      <PageHead title="收件箱" />
       <FullInboxPage
         model={mkInbox}
         onRead={(id) => toast.push({ tone: "info", message: `已读 ${id}` })}
@@ -129,7 +129,7 @@ export function InboxPage() {
 export function ResourcesGlobalPage() {
   return (
     <>
-      <PageHead title="Resources（Knowledge / Skills / Templates）" />
+      <PageHead title="资源库（知识 / 技能 / 模板）" />
       <ResourcesPage model={mkResources} />
     </>
   );
@@ -139,7 +139,7 @@ export function OperationsGlobalPage() {
   const toast = useToast();
   return (
     <>
-      <PageHead title="Operations" />
+      <PageHead title="运维" />
       <OperationsPage
         model={mkOperations}
         onCheck={(id) => toast.push({ tone: "info", message: `连接检查 ${id}` })}
@@ -153,7 +153,7 @@ export function SettingsGlobalPage() {
   const toast = useToast();
   return (
     <>
-      <PageHead title="Settings / Preflight / Diagnostics" />
+      <PageHead title="设置 / 预检 / 诊断" />
       <SettingsPage model={mkSettings} onRecheck={(item) => toast.push({ tone: "info", message: `Recheck ${item}` })} />
     </>
   );

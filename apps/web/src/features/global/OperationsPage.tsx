@@ -34,12 +34,12 @@ export function OperationsPage({ model, onCheck, onRotate }: {
       items={[
         {
           id: "providers",
-          label: "Providers / Models / Budget",
+          label: "模型供应商 / 模型 / 预算",
           content: (
             <div style={{ display: "grid", gap: "var(--sp-4)" }}>
               <div className="sn-table-wrap">
                 <table className="sn-table">
-                  <thead><tr><th>Provider</th><th>BaseURL</th><th>模型</th><th>连接检查</th><th>状态</th><th></th></tr></thead>
+                  <thead><tr><th>供应商</th><th>BaseURL</th><th>模型</th><th>连接检查</th><th>状态</th><th></th></tr></thead>
                   <tbody>
                     {model.providers.map((p) => (
                       <tr key={p.id}>
@@ -58,7 +58,7 @@ export function OperationsPage({ model, onCheck, onRotate }: {
               <div>
                 <div style={{ color: "var(--ink-3)", fontSize: "var(--fs-xs)", marginBottom: "var(--sp-1)" }}>Model Profile（槽位）</div>
                 <table className="sn-table">
-                  <thead><tr><th>槽位</th><th>主模型</th><th>Fallback</th><th>温度</th><th>输出上限</th></tr></thead>
+                  <thead><tr><th>槽位</th><th>主模型</th><th>备用模型</th><th>温度</th><th>输出上限</th></tr></thead>
                   <tbody>{model.profiles.map((m) => (<tr key={m.slot}><td>{m.slot}</td><td>{m.model}</td><td>{m.fallback}</td><td>{m.temperature}</td><td>{m.maxOutput}</td></tr>))}</tbody>
                 </table>
               </div>
@@ -71,7 +71,7 @@ export function OperationsPage({ model, onCheck, onRotate }: {
         },
         {
           id: "identity",
-          label: "Identity / Secret Vault",
+          label: "身份 / 密钥保险库",
           content: (
             <div className="sn-table-wrap">
               <table className="sn-table">
@@ -84,18 +84,18 @@ export function OperationsPage({ model, onCheck, onRotate }: {
         },
         {
           id: "egress",
-          label: "Proxy / Egress",
+          label: "代理 / 出口",
           content: (
             <div className="sn-table-wrap">
               <table className="sn-table">
-                <thead><tr><th>Pool</th><th>区域</th><th>额度</th><th>当前 Lease</th><th>健康</th><th>绑定 Run</th><th></th></tr></thead>
+                <thead><tr><th>出口池</th><th>区域</th><th>额度</th><th>当前租约</th><th>健康</th><th>绑定运行</th><th></th></tr></thead>
                 <tbody>
                   {model.egress.map((p) => (
                     <tr key={p.id}>
                       <td>{p.provider}</td><td>{p.region}</td><td>{p.quota}</td>
                       <td className="mono" style={{ fontSize: "var(--fs-xs)" }}>{p.currentLease}</td>
                       <td><StatusBadge status={p.health} /></td><td className="mono" style={{ fontSize: "var(--fs-xs)" }}>{p.boundRun}</td>
-                      <td><Button size="sm" variant="ghost" onClick={() => onRotate?.(p.id)}>Rotate</Button></td>
+                      <td><Button size="sm" variant="ghost" onClick={() => onRotate?.(p.id)}>轮换</Button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -106,17 +106,17 @@ export function OperationsPage({ model, onCheck, onRotate }: {
         },
         {
           id: "sandbox",
-          label: "Sandbox / Runner / Tools",
+          label: "沙箱 / 执行器 / 工具",
           content: (
             <div style={{ display: "grid", gap: "var(--sp-4)" }}>
               <table className="sn-table">
-                <thead><tr><th>实例</th><th>Run</th><th>镜像 Digest</th><th>状态</th><th>CPU/内存</th><th>最后心跳</th></tr></thead>
+                <thead><tr><th>实例</th><th>运行</th><th>镜像摘要</th><th>状态</th><th>CPU/内存</th><th>最后心跳</th></tr></thead>
                 <tbody>{model.sandboxes.map((s) => (<tr key={s.id}><td className="mono">{s.id}</td><td className="mono">{s.run}</td><td className="mono" style={{ fontSize: "var(--fs-xs)" }}>{s.imageDigest}</td><td><StatusBadge status={s.state} /></td><td>{s.cpu}/{s.mem}</td><td>{s.lastHeartbeat}</td></tr>))}</tbody>
               </table>
               <div>
-                <div style={{ color: "var(--ink-3)", fontSize: "var(--fs-xs)", marginBottom: "var(--sp-1)" }}>Tool Registry</div>
+                <div style={{ color: "var(--ink-3)", fontSize: "var(--fs-xs)", marginBottom: "var(--sp-1)" }}>工具注册表</div>
                 <table className="sn-table">
-                  <thead><tr><th>工具</th><th>版本</th><th>Manifest Hash</th><th>副作用</th><th>成功率</th><th>状态</th></tr></thead>
+                  <thead><tr><th>工具</th><th>版本</th><th>清单哈希</th><th>副作用</th><th>成功率</th><th>状态</th></tr></thead>
                   <tbody>{model.tools.map((t) => (<tr key={t.id}><td className="mono">{t.name}</td><td>{t.version}</td><td className="mono" style={{ fontSize: "var(--fs-xs)" }}>{t.manifestHash}</td><td>{t.sideEffect}</td><td>{t.successRate}</td><td><StatusBadge status={t.enabled ? "RUNNING" : "STOPPED"} /></td></tr>))}</tbody>
                 </table>
               </div>
@@ -125,7 +125,7 @@ export function OperationsPage({ model, onCheck, onRotate }: {
         },
         {
           id: "diagnostics",
-          label: "Diagnostics",
+          label: "诊断",
           content: (
             <dl className="sn-kv" style={{ gridTemplateColumns: "auto auto 1fr", rowGap: "var(--sp-2)" }}>
               {model.diagnostics.map((d) => (

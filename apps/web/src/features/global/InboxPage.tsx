@@ -75,7 +75,7 @@ export function InboxPage(props: InboxPageProps) {
                     <span style={{ fontSize: "var(--fs-sm)" }}>{n.summary}</span>
                     <span style={{ marginLeft: "auto", color: "var(--ink-3)", fontSize: "var(--fs-xs)" }}>{n.at}</span>
                     <Button size="sm" variant="ghost" onClick={() => props.onRead?.(n.id)}>已读</Button>
-                    <Button size="sm" variant="ghost" onClick={() => props.onSnooze?.(n.id)}>Snooze</Button>
+                    <Button size="sm" variant="ghost" onClick={() => props.onSnooze?.(n.id)}>稍后</Button>
                   </div>
                 </Card>
               ))}

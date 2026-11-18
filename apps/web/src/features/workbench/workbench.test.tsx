@@ -33,7 +33,7 @@ describe("JobsPage（§16.4）", () => {
     await userEvent.click(screen.getByText("GET /api/orders/42 as A"));
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText("experiment.idor")).toBeInTheDocument();
-    await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "取消" }));
     expect(onCancel).toHaveBeenCalledWith("job-2");
   });
   it("图视图按模块聚合", async () => {
@@ -62,7 +62,7 @@ describe("SurfacePage（§16.5/§16.15）", () => {
     expect(screen.getAllByText("范围外").length).toBeGreaterThan(0);
     await userEvent.click(screen.getAllByText("/api/orders/{id}")[0]);
     expect(onEp).toHaveBeenCalled();
-    await userEvent.click(screen.getByRole("tab", { name: /Discovery Inbox/ }));
+    await userEvent.click(screen.getByRole("tab", { name: /发现收件箱/ }));
     expect(screen.getByText(/身份差异/)).toBeInTheDocument();
   });
 });
@@ -88,8 +88,8 @@ describe("EvidencePage（§16.9）", () => {
 describe("ToolsPage（§16.18）", () => {
   it("四视图：Action/Timeline/Terminal/Error", async () => {
     render(<ToolsPage model={mkTools} />);
-    expect(screen.getByRole("tab", { name: "Action View" })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("tab", { name: /Terminal/ }));
+    expect(screen.getByRole("tab", { name: "动作视图" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("tab", { name: /终端/ }));
     expect(screen.getByText(/probe \/api\/orders/)).toBeInTheDocument();
   });
 });
@@ -98,7 +98,7 @@ describe("TimelinePage（§16.28）", () => {
   it("时间轴 + Audit Explorer（重点标记）", async () => {
     render(<TimelinePage model={mkTimeline} />);
     expect(screen.getByText(/Epoch 1 启动/)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("tab", { name: "Audit Explorer" }));
+    await userEvent.click(screen.getByRole("tab", { name: "审计浏览器" }));
     expect(screen.getAllByText("重点").length).toBeGreaterThan(0);
   });
 });

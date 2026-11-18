@@ -45,7 +45,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </span>
         <span className="sep">·</span>
         <span style={{ display: "flex", alignItems: "center", gap: "var(--sp-1)" }}>
-          Proxy <ConnectionStatus state={st.proxy === "RUNNING" ? "LIVE" : "STALE"} />
+          代理 <ConnectionStatus state={st.proxy === "RUNNING" ? "LIVE" : "STALE"} />
         </span>
         <span style={{ marginLeft: "auto", display: "flex", gap: "var(--sp-2)" }}>
           <Button size="sm" variant="ghost" onClick={toggleTheme} aria-label="切换主题">
@@ -85,9 +85,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main className="app-main">{children}</main>
 
         {insp.isOpen && (
-          <aside className="app-inspector" aria-label="Inspector">
+          <aside className="app-inspector" aria-label="检视器">
             <div className="app-inspector-head">
-              <strong style={{ fontSize: "var(--fs-sm)" }}>Inspector</strong>
+              <strong style={{ fontSize: "var(--fs-sm)" }}>检视器</strong>
               <Button size="sm" variant="ghost" iconOnly aria-label="关闭 Inspector" onClick={insp.close}>✕</Button>
             </div>
             <Inspector model={insp.model} onNavigate={(ref) => navigate(`/runs/run-1/${ref.type === "finding" ? "findings" : ref.type}`)} />

@@ -20,7 +20,7 @@ export function SettingsPage({ model, onRecheck }: { model: SettingsModel; onRec
       items={[
         {
           id: "preflight",
-          label: "Preflight Center",
+          label: "预检中心",
           content: (
             <div style={{ display: "grid", gap: "var(--sp-4)" }}>
               {groups.map((g) => (
@@ -34,7 +34,7 @@ export function SettingsPage({ model, onRecheck }: { model: SettingsModel; onRec
                             <td style={{ width: 120 }}><StatusBadge status={PF_STATUS[p.status]} /><span className="sn-badge" data-tone={PF_TONE[p.status]} style={{ marginLeft: 4 }}>{p.status}</span></td>
                             <td>{p.item}</td>
                             <td style={{ color: "var(--ink-2)", fontSize: "var(--fs-xs)" }}>{p.detail}{p.fix && <div style={{ color: "var(--warn)" }}>修复：{p.fix}</div>}</td>
-                            <td style={{ width: 80 }}><Button size="sm" variant="ghost" onClick={() => onRecheck?.(p.item)}>Recheck</Button></td>
+                            <td style={{ width: 80 }}><Button size="sm" variant="ghost" onClick={() => onRecheck?.(p.item)}>重检</Button></td>
                           </tr>
                         ))}
                       </tbody>
@@ -55,7 +55,7 @@ export function SettingsPage({ model, onRecheck }: { model: SettingsModel; onRec
               <dt>时区</dt><dd>Europe/London</dd>
               <dt>主题</dt><dd>跟随状态条切换</dd>
               <dt>密度</dt><dd>comfortable（阅读区）/ compact（监控区）</dd>
-              <dt>默认页面</dt><dd>Dashboard</dd>
+              <dt>默认页面</dt><dd>值班台</dd>
             </dl>
           ),
         },

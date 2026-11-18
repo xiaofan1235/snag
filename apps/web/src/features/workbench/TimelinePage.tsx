@@ -48,7 +48,7 @@ export function TimelinePage({ model }: { model: TimelineModel }) {
       items={[
         {
           id: "timeline",
-          label: "Run Timeline",
+          label: "运行时间线",
           content: (
             <>
               <div style={{ display: "flex", gap: "var(--sp-3)", alignItems: "center", marginBottom: "var(--sp-3)" }}>
@@ -71,11 +71,11 @@ export function TimelinePage({ model }: { model: TimelineModel }) {
         },
         {
           id: "audit",
-          label: "Audit Explorer",
+          label: "审计浏览器",
           content: (
             <div className="sn-table-wrap">
               <table className="sn-table">
-                <thead><tr><th>时间</th><th>Actor</th><th>Command</th><th>对象</th><th>PolRev</th><th>结果</th><th>审计哈希</th></tr></thead>
+                <thead><tr><th>时间</th><th>操作者</th><th>命令</th><th>对象</th><th>PolRev</th><th>结果</th><th>审计哈希</th></tr></thead>
                 <tbody>
                   {model.audit.map((a, i) => (
                     <tr key={i} style={a.flagged ? { background: "var(--warn-bg)" } : undefined}>

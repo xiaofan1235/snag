@@ -12,13 +12,13 @@ export interface NavItem {
 
 // 全局左导航（D4）。
 export const GLOBAL_NAV: NavItem[] = [
-  { to: "/", label: "Dashboard", icon: "◫", implemented: true },
-  { to: "/runs", label: "Runs", icon: "▤", implemented: true },
-  { to: "/runs/new", label: "新建 Run", icon: "＋", implemented: true },
-  { to: "/inbox", label: "Inbox", icon: "✉", implemented: true },
-  { to: "/resources", label: "Resources", icon: "▦", implemented: true },
-  { to: "/operations", label: "Operations", icon: "⚙", implemented: true },
-  { to: "/settings", label: "Settings", icon: "⚑", implemented: true },
+  { to: "/", label: "值班台", icon: "◫", implemented: true },
+  { to: "/runs", label: "运行", icon: "▤", implemented: true },
+  { to: "/runs/new", label: "新建运行", icon: "＋", implemented: true },
+  { to: "/inbox", label: "收件箱", icon: "✉", implemented: true },
+  { to: "/resources", label: "资源库", icon: "▦", implemented: true },
+  { to: "/operations", label: "运维", icon: "⚙", implemented: true },
+  { to: "/settings", label: "设置", icon: "⚑", implemented: true },
 ];
 
 export interface RunNavItem extends NavItem {
@@ -43,21 +43,21 @@ export function isRunModeSeg(seg: string): seg is RunModeSeg {
 
 // 细节层二级导航（原 15 页，全部保留为细节视图）。
 export const RUN_NAV: RunNavItem[] = [
-  { seg: "overview", to: "", label: "Overview", icon: "◉", implemented: true },
-  { seg: "activity", to: "", label: "Activity", icon: "≡", implemented: true },
-  { seg: "strategy", to: "", label: "Strategy", icon: "✦", implemented: true },
-  { seg: "jobs", to: "", label: "Agent/Jobs", icon: "⬡", implemented: true },
-  { seg: "surface", to: "", label: "Surface", icon: "◈", implemented: true },
-  { seg: "hypotheses", to: "", label: "Hypotheses", icon: "☰", implemented: true },
-  { seg: "findings", to: "", label: "Findings", icon: "⚑", implemented: true },
-  { seg: "traffic", to: "", label: "Traffic", icon: "⇅", implemented: true },
-  { seg: "evidence", to: "", label: "Evidence", icon: "▣", implemented: true },
-  { seg: "browser", to: "", label: "Browser", icon: "◎", implemented: true },
-  { seg: "tools", to: "", label: "Tools", icon: "⚒", implemented: true },
-  { seg: "files", to: "", label: "Files", icon: "▤", implemented: true },
-  { seg: "coverage", to: "", label: "Coverage", icon: "▦", implemented: true },
-  { seg: "report", to: "", label: "Report", icon: "▧", implemented: true },
-  { seg: "timeline", to: "", label: "Timeline", icon: "◷", implemented: true },
+  { seg: "overview", to: "", label: "概览", icon: "◉", implemented: true },
+  { seg: "activity", to: "", label: "活动", icon: "≡", implemented: true },
+  { seg: "strategy", to: "", label: "策略", icon: "✦", implemented: true },
+  { seg: "jobs", to: "", label: "智能体/作业", icon: "⬡", implemented: true },
+  { seg: "surface", to: "", label: "攻击面", icon: "◈", implemented: true },
+  { seg: "hypotheses", to: "", label: "假设", icon: "☰", implemented: true },
+  { seg: "findings", to: "", label: "发现", icon: "⚑", implemented: true },
+  { seg: "traffic", to: "", label: "流量", icon: "⇅", implemented: true },
+  { seg: "evidence", to: "", label: "证据", icon: "▣", implemented: true },
+  { seg: "browser", to: "", label: "浏览器", icon: "◎", implemented: true },
+  { seg: "tools", to: "", label: "工具", icon: "⚒", implemented: true },
+  { seg: "files", to: "", label: "文件", icon: "▤", implemented: true },
+  { seg: "coverage", to: "", label: "覆盖", icon: "▦", implemented: true },
+  { seg: "report", to: "", label: "报告", icon: "▧", implemented: true },
+  { seg: "timeline", to: "", label: "时间线", icon: "◷", implemented: true },
 ];
 
 // Run 的默认进入段（主模式·指挥台）。

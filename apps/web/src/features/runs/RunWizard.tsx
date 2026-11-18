@@ -171,7 +171,7 @@ export function RunWizard({ initial, preflight, onStart, onRunPreflight }: RunWi
             </ul>
             <div style={{ marginTop: "var(--sp-3)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-2)", marginBottom: "var(--sp-2)" }}>
-                <strong style={{ fontSize: "var(--fs-sm)" }}>Preflight</strong>
+                <strong style={{ fontSize: "var(--fs-sm)" }}>预检</strong>
                 {onRunPreflight && (
                   <Button size="sm" variant="secondary" onClick={() => onRunPreflight(state)}>
                     运行 Preflight

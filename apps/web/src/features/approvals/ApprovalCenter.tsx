@@ -83,13 +83,13 @@ export function ApprovalCenter({ items, onApprove, onDeny, onDenyAndCancel }: Ap
           {it.state === "PENDING" && (
             <div style={{ display: "flex", gap: "var(--sp-2)" }}>
               <Button size="sm" variant="primary" onClick={() => onApprove?.(it.id, it.revision, it.actionDigest)}>
-                Approve Once
+                批准一次
               </Button>
               <Button size="sm" variant="secondary" onClick={() => onDeny?.(it.id)}>
-                Deny
+                拒绝
               </Button>
               <Button size="sm" variant="danger" onClick={() => onDenyAndCancel?.(it.id)}>
-                Deny and Cancel Related
+                拒绝并取消关联作业
               </Button>
             </div>
           )}

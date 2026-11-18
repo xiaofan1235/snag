@@ -44,7 +44,7 @@ export function FilesPage({ model, onPreview }: { model: FilesModel; onPreview?:
       items={[
         {
           id: "files",
-          label: "Run Files",
+          label: "运行文件",
           content: (
             <div className="sn-three-col" style={{ gridTemplateColumns: "1fr 300px" }}>
               <div className="sn-table-wrap">
@@ -91,7 +91,7 @@ export function FilesPage({ model, onPreview }: { model: FilesModel; onPreview?:
           content: (
             <div className="sn-table-wrap">
               <table className="sn-table">
-                <thead><tr><th>名称</th><th>Scope</th><th>标签</th><th>上传者</th><th>有效期</th><th>类型</th></tr></thead>
+                <thead><tr><th>名称</th><th>范围</th><th>标签</th><th>上传者</th><th>有效期</th><th>类型</th></tr></thead>
                 <tbody>
                   {model.resources.map((r) => (
                     <tr key={r.id}>

@@ -88,7 +88,7 @@ export function TrafficPage({ model, onReplay }: TrafficPageProps) {
               items={[
                 { id: "req", label: "请求", content: <HTTPViewer message={sel.request} /> },
                 { id: "resp", label: "响应", content: <HTTPViewer message={sel.response} /> },
-                ...(variant ? [{ id: "diff", label: "Baseline/Variant Diff", content: (
+                ...(variant ? [{ id: "diff", label: "基线/变体差异", content: (
                   <DiffViewer baseline={sel.response.body ?? ""} variant={variant.response.body ?? ""} sync />
                 ) }] : []),
               ]}
@@ -105,7 +105,7 @@ export function TrafficPage({ model, onReplay }: TrafficPageProps) {
         {sel && (
           <Card>
             <dl className="sn-kv">
-              <dt>Identity</dt><dd>{sel.identity}</dd>
+              <dt>身份</dt><dd>{sel.identity}</dd>
               <dt>Job</dt><dd className="mono">{sel.jobId}</dd>
               <dt>Action</dt><dd className="mono">{sel.relatedAction ?? "-"}</dd>
               <dt>Permit</dt><dd className="mono">{sel.relatedPermit ?? "-"}</dd>

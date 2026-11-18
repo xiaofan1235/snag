@@ -31,25 +31,34 @@ export interface OrchestrationChatProps {
 export function OrchestrationChat({ model, focusedTitle, onSteer, onJump }: OrchestrationChatProps) {
   const [scope, setScope] = useState<"all" | "focused">("all");
   const [draft, setDraft] = useState("");
+  // 人工在此发出的消息（乐观追加进对话流，接线后由事件流回灌真实往返）。
+  const [sent, setSent] = useState<OrchEntry[]>([]);
 
+  const all = useMemo(() => [...model.entries, ...sent], [model.entries, sent]);
   const entries = useMemo(
-    () => (scope === "focused" ? model.entries.filter((e) => e.agentId === model.focusedId) : model.entries),
-    [model.entries, model.focusedId, scope]
+    () => (scope === "focused" ? all.filter((e) => e.agentId === model.focusedId) : all),
+    [all, model.focusedId, scope]
   );
 
   const send = () => {
     const t = draft.trim();
     if (!t) return;
+    const now = new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
+    const base = Date.now();
+    // 两段：人工消息 + Agent 收到回执（预览模拟；真实回复由 daemon 推流）。
+    const human: OrchEntry = { id: `u-${base}`, kind: "directive", at: now, agentId: model.focusedId, text: `【你】${t}` };
+    const ack: OrchEntry = { id: `a-${base}`, kind: "reasoning", at: now, agentId: model.focusedId, text: "收到，正在据此调整当前计划…（真实回复待 daemon 接线）" };
+    setSent((prev) => [...prev, human, ack]);
     onSteer?.(model.focusedId, t);
     setDraft("");
   };
 
   return (
-    <div className="sn-orch" aria-label="编排对话">
+    <div className="sn-orch" aria-label="与 AI 对话">
       <div className="sn-orch-head">
         <div>
-          <div className="sn-orch-title">编排对话 · <strong>{focusedTitle}</strong></div>
-          <div className="sn-orch-sub">人工在此转向；危险指令仍走审批</div>
+          <div className="sn-orch-title">与 Agent 对话 · <strong>{focusedTitle}</strong></div>
+          <div className="sn-orch-sub">你在这里向 AI 下达指令 / 转向，消息进入对话流；危险命令仍走审批</div>
         </div>
         <div className="sn-seg" role="group" aria-label="范围">
           <button data-active={scope === "all" || undefined} onClick={() => setScope("all")}>全部</button>
@@ -77,8 +86,8 @@ export function OrchestrationChat({ model, focusedTitle, onSteer, onJump }: Orch
           <textarea
             className="sn-input"
             rows={2}
-            placeholder={model.canSteer ? "向该 Agent 下发转向指令…" : "当前不可转向（Run 非运行/暂停态）"}
-            aria-label="转向指令"
+            placeholder={model.canSteer ? "给 AI 发消息 / 下达指令…（Ctrl/⌘+Enter 发送）" : "当前不可对话（运行非运行/暂停态）"}
+            aria-label="与 AI 对话输入"
             value={draft}
             disabled={!model.canSteer}
             onChange={(ev) => setDraft(ev.target.value)}
@@ -90,7 +99,7 @@ export function OrchestrationChat({ model, focusedTitle, onSteer, onJump }: Orch
             }}
           />
           <button className="sn-btn" data-variant="primary" disabled={!model.canSteer || !draft.trim()} onClick={send}>
-            下发
+            发送
           </button>
         </div>
       </div>

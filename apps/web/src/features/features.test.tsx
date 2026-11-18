@@ -147,7 +147,7 @@ describe("ActivityStream（§16.13）", () => {
 
   it("Live Follow 开关存在且默认开", () => {
     render(<ActivityStream events={events} />);
-    const cb = screen.getByRole("checkbox", { name: /Live Follow/ });
+    const cb = screen.getByRole("checkbox", { name: /实时跟随/ });
     expect(cb).toBeChecked();
   });
 

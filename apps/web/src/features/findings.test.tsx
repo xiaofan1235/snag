@@ -80,20 +80,20 @@ describe("ApprovalCenter（§16.10）", () => {
   it("Approve 带 revision + actionDigest（冲突检测用）", async () => {
     const onApprove = vi.fn();
     render(<ApprovalCenter items={items} onApprove={onApprove} />);
-    await userEvent.click(screen.getByRole("button", { name: "Approve Once" }));
+    await userEvent.click(screen.getByRole("button", { name: "批准一次" }));
     expect(onApprove).toHaveBeenCalledWith("ap-1", 2, "digest-abc");
   });
 
-  it("Deny and Cancel Related 回调", async () => {
+  it("拒绝并取消关联作业 回调", async () => {
     const onDenyCancel = vi.fn();
     render(<ApprovalCenter items={items} onDenyAndCancel={onDenyCancel} />);
-    await userEvent.click(screen.getByRole("button", { name: "Deny and Cancel Related" }));
+    await userEvent.click(screen.getByRole("button", { name: "拒绝并取消关联作业" }));
     expect(onDenyCancel).toHaveBeenCalledWith("ap-1");
   });
 
   it("非 PENDING 审批不显示操作按钮", () => {
     render(<ApprovalCenter items={[{ ...items[0], state: "APPROVED" }]} />);
-    expect(screen.queryByRole("button", { name: "Approve Once" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "批准一次" })).not.toBeInTheDocument();
   });
 });
 

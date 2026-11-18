@@ -73,6 +73,6 @@ export const mkInbox: InboxModel = {
   ],
   approvals: previewApprovals,
   blockers: [
-    { id: "b1", runId: "run-2", reason: "代理 Lease 过期", scope: "run-2 全部目标 Egress", waitedFor: "4 分钟", recoveryActions: ["重新提取出口并绑定", "Preflight"], restartsJobs: ["job-2", "job-3"] },
+    { id: "b1", runId: "run-2", reason: "代理 Lease 过期", scope: "run-2 全部目标 Egress", waitedFor: "4 分钟", recoveryActions: ["重新提取出口并绑定", "预检"], restartsJobs: ["job-2", "job-3"] },
   ],
 };

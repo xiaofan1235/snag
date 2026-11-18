@@ -50,7 +50,7 @@ describe("App 外壳与导航", () => {
 
   it("默认路由渲染值班台（Dashboard 四区）", () => {
     renderApp();
-    expect(screen.getByText("值班台")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "值班台" })).toBeInTheDocument();
     expect(screen.getByText("需要我处理")).toBeInTheDocument();
   });
 
@@ -64,8 +64,8 @@ describe("App 外壳与导航", () => {
   it("点击左导航 Runs → 进入 Runs 列表", async () => {
     renderApp();
     const nav = screen.getByRole("navigation", { name: "主导航" });
-    await userEvent.click(within(nav).getByText("Runs"));
-    expect(await screen.findByText("Runs 列表 / 历史")).toBeInTheDocument();
+    await userEvent.click(within(nav).getByText("运行"));
+    expect(await screen.findByText("运行列表 / 历史")).toBeInTheDocument();
   });
 
   it("从 Runs 列表点一个 Run → 进入指挥台（作战模式，默认会话树）", async () => {
@@ -73,7 +73,7 @@ describe("App 外壳与导航", () => {
     renderApp();
     await userEvent.click(screen.getByText("acme.com 授权测试"));
     // 作战视图标题 + 主模式导航 + 指挥台默认内容（会话树）。
-    expect(await screen.findByText(/Run run-1/)).toBeInTheDocument();
+    expect(await screen.findByText(/运行 run-1/)).toBeInTheDocument();
     expect(screen.getByRole("tablist", { name: "Run 作战模式" })).toBeInTheDocument();
     expect(screen.getByRole("tree", { name: "Agent 会话" })).toBeInTheDocument();
   });
@@ -94,7 +94,7 @@ describe("App 外壳与导航", () => {
     window.location.hash = "/runs/run-1/overview";
     renderApp();
     const subnav = screen.getByRole("tablist", { name: "Run 细节视图" });
-    await userEvent.click(within(subnav).getByText("Findings"));
+    await userEvent.click(within(subnav).getByText("发现"));
     expect(await screen.findByTestId("facts")).toBeInTheDocument();
     expect(screen.getByTestId("inferences")).toBeInTheDocument();
   });
@@ -102,27 +102,27 @@ describe("App 外壳与导航", () => {
   it("Inbox 待办角标显示，进入显示分类通知 + 审批 Tab", async () => {
     renderApp();
     const nav = screen.getByRole("navigation", { name: "主导航" });
-    await userEvent.click(within(nav).getByText("Inbox"));
-    expect(await screen.findByText("Inbox 收件箱")).toBeInTheDocument();
+    await userEvent.click(within(nav).getByText("收件箱"));
+    expect(await screen.findByRole("heading", { name: "收件箱" })).toBeInTheDocument();
     // 默认「全部通知」Tab 显示分类通知。
     expect(screen.getByText(/run-1 请求预算已用 78%/)).toBeInTheDocument();
     // 切到待审批 Tab → ApprovalCenter。
     await userEvent.click(screen.getByRole("tab", { name: /待审批/ }));
-    expect(screen.getByRole("button", { name: "Approve Once" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "批准一次" })).toBeInTheDocument();
   });
 
   it("Resources 页渲染（Knowledge/Skills/Templates）", async () => {
     window.location.hash = "/resources";
     renderApp();
-    expect(await screen.findByText(/Resources（Knowledge/)).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Knowledge" })).toBeInTheDocument();
+    expect(await screen.findByText(/资源库（知识/)).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "知识" })).toBeInTheDocument();
   });
 
   it("Operations 页渲染（Providers/Egress/Sandbox/Diagnostics）", async () => {
     window.location.hash = "/operations";
     renderApp();
-    expect(await screen.findByRole("heading", { name: "Operations" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Providers/ })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "运维" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /模型供应商/ })).toBeInTheDocument();
   });
 
   it("Run 工作台所有子导航项均可进入真实页（无空态占位）", async () => {
@@ -140,7 +140,7 @@ describe("App 外壳与导航", () => {
     renderApp();
     await userEvent.click(await screen.findByRole("button", { name: "/api/orders IDOR TESTED" }));
     // 右栏 Inspector 打开并显示对象。
-    expect(await screen.findByRole("complementary", { name: "Inspector" })).toBeInTheDocument();
+    expect(await screen.findByRole("complementary", { name: "检视器" })).toBeInTheDocument();
     expect(screen.getByTestId("inspector")).toBeInTheDocument();
   });
 });

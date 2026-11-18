@@ -56,7 +56,7 @@ export function ActivityStream({ events, onJump, onOpenSession }: ActivityStream
       <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-2)", marginBottom: "var(--sp-2)" }}>
         <label style={{ display: "flex", alignItems: "center", gap: "var(--sp-1)", fontSize: "var(--fs-sm)" }}>
           <input type="checkbox" checked={following} onChange={(e) => setFollowing(e.target.checked)} />
-          Live Follow
+          实时跟随
         </label>
         <span style={{ color: "var(--ink-3)", fontSize: "var(--fs-xs)" }}>{events.length} 条事件</span>
       </div>
@@ -77,7 +77,7 @@ export function ActivityStream({ events, onJump, onOpenSession }: ActivityStream
           >
             {onOpenSession && (
               <button className="sn-btn sn-focus" data-variant="link" data-size="sm" onClick={() => onOpenSession(ev)}>
-                查看 Agent Session
+                查看智能体会话
               </button>
             )}
           </EventCard>

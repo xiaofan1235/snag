@@ -47,7 +47,7 @@ export function ResourcesPage({ model }: { model: ResourcesModel }) {
       items={[
         {
           id: "knowledge",
-          label: "Knowledge",
+          label: "知识",
           content: (
             <div className="sn-table-wrap">
               <table className="sn-table">
@@ -71,11 +71,11 @@ export function ResourcesPage({ model }: { model: ResourcesModel }) {
         },
         {
           id: "skills",
-          label: "Skills & Templates",
+          label: "技能与模板",
           content: (
             <div className="sn-table-wrap">
               <table className="sn-table">
-                <thead><tr><th>Skill</th><th>版本</th><th>来源</th><th>Manifest Hash</th><th>适用 Job</th><th>所需工具</th><th>状态</th></tr></thead>
+                <thead><tr><th>技能</th><th>版本</th><th>来源</th><th>清单哈希</th><th>适用作业</th><th>所需工具</th><th>状态</th></tr></thead>
                 <tbody>
                   {model.skills.map((s) => (
                     <tr key={s.id}>
@@ -96,11 +96,11 @@ export function ResourcesPage({ model }: { model: ResourcesModel }) {
         },
         {
           id: "templates",
-          label: "Run Templates",
+          label: "运行模板",
           content: (
             <div className="sn-table-wrap">
               <table className="sn-table">
-                <thead><tr><th>模板</th><th>Scope</th><th>预算</th><th>工具集</th></tr></thead>
+                <thead><tr><th>模板</th><th>范围</th><th>预算</th><th>工具集</th></tr></thead>
                 <tbody>
                   {model.templates.map((t) => (
                     <tr key={t.id}><td>{t.name}</td><td className="mono" style={{ fontSize: "var(--fs-xs)" }}>{t.scope}</td><td>{t.budget}</td><td>{t.tools}</td></tr>

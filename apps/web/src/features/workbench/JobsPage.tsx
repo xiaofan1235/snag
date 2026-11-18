@@ -45,7 +45,7 @@ export function JobsPage({ model, onCancel, onReprioritize }: JobsPageProps) {
       <table className="sn-table">
         <thead>
           <tr>
-            <th>类型</th><th>模块</th><th>状态</th><th>Attempt</th><th>当前动作</th><th>优先级</th><th>预算</th><th>租约</th><th>创建原因</th>
+            <th>类型</th><th>模块</th><th>状态</th><th>尝试</th><th>当前动作</th><th>优先级</th><th>预算</th><th>租约</th><th>创建原因</th>
           </tr>
         </thead>
         <tbody>
@@ -124,7 +124,7 @@ export function JobsPage({ model, onCancel, onReprioritize }: JobsPageProps) {
             )}
             <div style={{ display: "flex", gap: "var(--sp-2)" }}>
               <Button size="sm" variant="secondary" onClick={() => onReprioritize?.(sel.id, sel.priority + 10)}>提升优先级</Button>
-              <Button size="sm" variant="danger" onClick={() => { onCancel?.(sel.id); setSel(null); }}>Cancel</Button>
+              <Button size="sm" variant="danger" onClick={() => { onCancel?.(sel.id); setSel(null); }}>取消</Button>
             </div>
           </div>
         )}

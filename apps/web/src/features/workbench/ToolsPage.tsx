@@ -37,7 +37,7 @@ export function ToolsPage({ model }: { model: ToolsModel }) {
       items={[
         {
           id: "action",
-          label: "Action View",
+          label: "动作视图",
           content: (
             <div style={{ display: "grid", gap: "var(--sp-2)" }}>
               {model.actions.map((a) => (
@@ -56,7 +56,7 @@ export function ToolsPage({ model }: { model: ToolsModel }) {
         },
         {
           id: "timeline",
-          label: "Tool Timeline",
+          label: "工具时间线",
           content: (
             <table className="sn-table">
               <thead><tr><th>#</th><th>工具</th><th>耗时</th><th>重试</th><th>降级</th></tr></thead>
@@ -68,10 +68,10 @@ export function ToolsPage({ model }: { model: ToolsModel }) {
             </table>
           ),
         },
-        { id: "terminal", label: "Terminal View（只读）", content: <pre className="sn-terminal">{model.terminal}</pre> },
+        { id: "terminal", label: "终端视图（只读）", content: <pre className="sn-terminal">{model.terminal}</pre> },
         {
           id: "error",
-          label: "Error View",
+          label: "错误视图",
           badge: model.errors.reduce((s, e) => s + e.count, 0),
           content: (
             <div style={{ display: "grid", gap: "var(--sp-2)" }}>

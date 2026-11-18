@@ -39,7 +39,7 @@ function inspectFromRef(ref: { type: string; id: string }, runId: string): Inspe
     fields: [
       { label: "类型", value: ref.type },
       { label: "ID", value: ref.id },
-      { label: "Run", value: runId },
+      { label: "运行", value: runId },
     ],
     related,
   };
@@ -48,11 +48,11 @@ function inspectFromRef(ref: { type: string; id: string }, runId: string): Inspe
 export function RunWorkbench({ runId, seg }: { runId: string; seg: string }) {
   const navigate = useNavigate();
   const mode = isRunModeSeg(seg) ? seg : "detail";
-  const crumbs = (<><a href="#/runs">Runs</a> › <span>{runId}</span></>);
+  const crumbs = (<><a href="#/runs">运行</a> › <span>{runId}</span></>);
 
   return (
     <>
-      <PageHead title={`Run ${runId}`} crumbs={crumbs} />
+      <PageHead title={`运行 ${runId}`} crumbs={crumbs} />
 
       {/* 主模式导航（ARTEX 式作战入口） */}
       <nav className="run-modebar" role="tablist" aria-label="Run 作战模式">
@@ -246,7 +246,7 @@ function RunDetail({ runId, seg }: { runId: string; seg: string }) {
             }
             onOpenSession={() => setSessionOpen(true)}
           />
-          <Drawer open={sessionOpen} onClose={() => setSessionOpen(false)} title="Agent Session">
+          <Drawer open={sessionOpen} onClose={() => setSessionOpen(false)} title="智能体会话">
             <AgentSessionPanel
               model={{ sessionId: "s1", role: "executor", modelProfile: "default", jobId: "job-2", attempt: 2, generation: 1, contextRevision: 5, compactions: 1, tokenUsed: 1200, tools: ["http", "browser"], lastInputSummary: "最近输入摘要（Redacted Projection）" }}
             />
@@ -262,7 +262,7 @@ function RunDetail({ runId, seg }: { runId: string; seg: string }) {
             insp.show({
               ref: { type: kind === "verifier" ? "finding" : kind, id },
               title: kind === "verifier" ? "Verifier 意见" : kind,
-              fields: [{ label: "对象", value: `${kind}:${id}` }, { label: "Run", value: runId }],
+              fields: [{ label: "对象", value: `${kind}:${id}` }, { label: "运行", value: runId }],
               related: [{ label: "回到 Finding", ref: { type: "finding", id: previewFinding.id } }],
             })
           }
@@ -303,8 +303,8 @@ function RunDetail({ runId, seg }: { runId: string; seg: string }) {
               fields: [
                 { label: "状态", value: cell.state },
                 { label: "身份", value: cell.identity },
-                ...(cell.actionId ? [{ label: "Action", value: cell.actionId }] : []),
-                ...(cell.evidenceId ? [{ label: "Evidence", value: cell.evidenceId }] : []),
+                ...(cell.actionId ? [{ label: "动作", value: cell.actionId }] : []),
+                ...(cell.evidenceId ? [{ label: "证据", value: cell.evidenceId }] : []),
                 ...(cell.untestedReason ? [{ label: "未测原因", value: cell.untestedReason }] : []),
               ],
             })
