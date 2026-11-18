@@ -25,7 +25,7 @@ describe("SessionTree（多 Agent 会话树）", () => {
     const onFocus = vi.fn();
     const onJob = vi.fn();
     render(<SessionTree model={mkSessionTree} onFocus={onFocus} onOpenJob={onJob} />);
-    await userEvent.click(within(screen.getByRole("tree")).getAllByText("Job →")[0]);
+    await userEvent.click(within(screen.getByRole("tree")).getAllByText("作业")[0]);
     expect(onJob).toHaveBeenCalled();
     expect(onFocus).not.toHaveBeenCalled();
   });

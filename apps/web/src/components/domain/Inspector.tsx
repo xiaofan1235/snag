@@ -68,7 +68,7 @@ export function Inspector({ model, onNavigate, emptyHint }: InspectorProps) {
                 data-size="sm"
                 onClick={() => onNavigate?.(r.ref)}
               >
-                {r.label} →
+                {r.label}
               </button>
             ))}
           </div>

@@ -74,7 +74,6 @@ export function AppShell({ children }: { children: ReactNode }) {
                   navigate(item.to);
                 }}
               >
-                <span className="nav-icon" aria-hidden="true">{item.icon}</span>
                 <span className="nav-label">{item.label}</span>
                 {item.to === "/inbox" && attention > 0 && <span className="nav-badge">{attention}</span>}
               </a>

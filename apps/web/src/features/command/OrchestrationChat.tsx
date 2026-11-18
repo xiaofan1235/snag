@@ -124,7 +124,7 @@ function OrchLine({ entry, onJump }: { entry: OrchEntry; onJump?: (ref: { type: 
           {typeof entry.tokens === "number" && <span>· {entry.tokens} tok</span>}
           {entry.objectRef && onJump && (
             <button className="sn-link-btn" onClick={() => onJump(entry.objectRef!)}>
-              {entry.objectRef.type} →
+查看 {entry.objectRef.type}
             </button>
           )}
         </div>

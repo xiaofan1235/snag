@@ -66,7 +66,7 @@ export function EventCard({ kind, title, time, status, children, onJump, jumpLab
             data-size="sm"
             onClick={onJump}
           >
-            {jumpLabel ?? "查看详情 →"}
+            {jumpLabel ?? "查看详情"}
           </button>
         </div>
       )}

@@ -22,11 +22,10 @@
   overflow-x: auto;
 }
 .app-statusbar .live-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--accent);
-  animation: sn-pulse 1.4s var(--ease) infinite;
   flex: none;
 }
 .app-statusbar .sep {
@@ -73,16 +72,19 @@
   border-radius: var(--radius-sm);
   color: var(--ink-2);
   text-decoration: none;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-md);
   cursor: pointer;
 }
 .app-nav-item:hover {
+  color: var(--ink-1);
   background: var(--bg-sunken);
 }
 .app-nav-item[data-active="true"] {
-  background: var(--accent-weak);
   color: var(--accent);
   font-weight: 600;
+  background: transparent;
+  box-shadow: inset 2px 0 0 var(--accent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 .app-nav-item .nav-icon {
   width: 18px;
@@ -104,22 +106,28 @@
 .app-nav-section {
   color: var(--ink-3);
   font-size: var(--fs-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   padding: var(--sp-3) var(--sp-3) var(--sp-1);
 }
 
-/* 中内容 */
+/* 中内容：更慷慨的留白，内容靠空白与层级分区，而非盒子 */
 .app-main {
   overflow-y: auto;
-  padding: var(--sp-5);
+  padding: var(--sp-6) var(--sp-8);
   min-width: 0;
+}
+@media (max-width: 900px) {
+  .app-main {
+    padding: var(--sp-5) var(--sp-4);
+  }
 }
 .app-main-head {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: var(--sp-3);
-  margin-bottom: var(--sp-4);
+  margin-bottom: var(--sp-5);
+}
+.app-main-head h1 {
+  font-size: var(--fs-2xl);
 }
 .app-crumbs {
   color: var(--ink-3);

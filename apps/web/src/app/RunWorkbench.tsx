@@ -73,7 +73,6 @@ export function RunWorkbench({ runId, seg }: { runId: string; seg: string }) {
                 navigate(runNavTo(runId, target));
               }}
             >
-              <span className="run-mode-icon" aria-hidden="true">{m.icon}</span>
               {m.label}
             </a>
           );

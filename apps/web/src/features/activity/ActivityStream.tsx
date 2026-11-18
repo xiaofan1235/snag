@@ -73,7 +73,7 @@ export function ActivityStream({ events, onJump, onOpenSession }: ActivityStream
             kind={eventKind(ev.event_type)}
             title={title(ev)}
             onJump={onJump ? () => onJump(ev) : undefined}
-            jumpLabel="跳转到对象 →"
+            jumpLabel="跳转到对象"
           >
             {onOpenSession && (
               <button className="sn-btn sn-focus" data-variant="link" data-size="sm" onClick={() => onOpenSession(ev)}>

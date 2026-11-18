@@ -140,8 +140,8 @@ describe("ActivityStream（§16.13）", () => {
     const onJump = vi.fn();
     render(<ActivityStream events={events} onJump={onJump} />);
     expect(screen.getByText("plan.updated")).toBeInTheDocument();
-    expect(screen.getAllByText("跳转到对象 →").length).toBe(3);
-    await userEvent.click(screen.getAllByText("跳转到对象 →")[0]);
+    expect(screen.getAllByText("跳转到对象").length).toBe(3);
+    await userEvent.click(screen.getAllByText("跳转到对象")[0]);
     expect(onJump).toHaveBeenCalledWith(events[0]);
   });
 

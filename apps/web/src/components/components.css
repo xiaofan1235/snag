@@ -251,50 +251,40 @@ textarea.sn-input {
   }
 }
 
-/* ===== StatusBadge（D2.6）——颜色+图标+文字三者齐全 ===== */
+/* ===== 状态标签（D2.6）——克制：小圆点 + 着色文字，不做糖果色块（去「AI 味」） ===== */
 .sn-badge {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-1);
-  padding: 2px var(--sp-2);
-  border-radius: var(--radius-sm);
   font-size: var(--fs-xs);
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.5;
   white-space: nowrap;
-}
-.sn-badge[data-tone="ok"] {
-  background: var(--ok-bg);
-  color: var(--ok);
-}
-.sn-badge[data-tone="warn"] {
-  background: var(--warn-bg);
-  color: var(--warn);
-}
-.sn-badge[data-tone="danger"] {
-  background: var(--danger-bg);
-  color: var(--danger);
-}
-.sn-badge[data-tone="accent"] {
-  background: var(--accent-weak);
-  color: var(--accent);
-}
-.sn-badge[data-tone="info"] {
-  background: var(--info-bg);
-  color: var(--info);
-}
-.sn-badge[data-tone="unknown"] {
-  background: var(--unknown-bg);
-  color: var(--unknown);
-}
-.sn-badge[data-tone="ink-2"] {
-  background: var(--bg-sunken);
   color: var(--ink-2);
 }
-.sn-badge[data-tone="ink-3"] {
-  background: var(--bg-sunken);
-  color: var(--ink-3);
+/* 语义标签前置小圆点承载状态色；中性标签（ink-2/3）与自带圆点者（StatusBadge）不加。 */
+.sn-badge::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+  opacity: 0.85;
 }
+.sn-badge[data-tone="ink-2"]::before,
+.sn-badge[data-tone="ink-3"]::before,
+.sn-badge:has(.sn-badge-dot)::before {
+  display: none;
+}
+.sn-badge[data-tone="ok"] { color: var(--ok); }
+.sn-badge[data-tone="warn"] { color: var(--warn); }
+.sn-badge[data-tone="danger"] { color: var(--danger); }
+.sn-badge[data-tone="accent"] { color: var(--accent); }
+.sn-badge[data-tone="info"] { color: var(--info); }
+.sn-badge[data-tone="unknown"] { color: var(--unknown); }
+.sn-badge[data-tone="ink-2"] { color: var(--ink-2); }
+.sn-badge[data-tone="ink-3"] { color: var(--ink-3); }
 .sn-badge-dot {
   width: 6px;
   height: 6px;
@@ -313,15 +303,6 @@ textarea.sn-input {
   50% {
     opacity: 0.35;
   }
-}
-.sn-badge[data-hatched="true"] {
-  background-image: repeating-linear-gradient(
-    45deg,
-    transparent,
-    transparent 3px,
-    rgba(0, 0, 0, 0.05) 3px,
-    rgba(0, 0, 0, 0.05) 6px
-  );
 }
 
 /* ===== Tabs（D2.9，下划线式） ===== */
@@ -408,8 +389,6 @@ textarea.sn-input {
   color: var(--ink-2);
   font-weight: 600;
   padding: var(--sp-1) var(--sp-2);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
 }
 .sn-kanban-card {
   background: var(--bg-surface);
@@ -486,20 +465,20 @@ textarea.sn-input {
   background: var(--bg-sunken);
 }
 
-/* ===== Card（D2.7） ===== */
+/* ===== Card（D2.7）——编辑感：平，靠描边与留白而非阴影分层 ===== */
 .sn-card {
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-1);
   padding: var(--sp-4);
 }
 .sn-card[data-clickable="true"] {
   cursor: pointer;
-  transition: box-shadow var(--dur-1) var(--ease);
+  transition: border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
 }
 .sn-card[data-clickable="true"]:hover {
-  box-shadow: var(--shadow-2);
+  border-color: var(--border-strong);
+  background: var(--bg-surface);
 }
 
 /* ===== Table（D2.8） ===== */

@@ -88,7 +88,7 @@ describe("Inspector", () => {
     );
     expect(screen.getByText("订单越权")).toBeInTheDocument();
     expect(screen.getByText("IDOR")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "证据 ev-1 →" }));
+    await userEvent.click(screen.getByRole("button", { name: "证据 ev-1" }));
     expect(onNav).toHaveBeenCalledWith({ type: "evidence", id: "ev-1" });
   });
 });
@@ -103,7 +103,7 @@ describe("EventCard", () => {
     );
     expect(screen.getByText("动作")).toBeInTheDocument();
     expect(screen.getByText("运行中")).toBeInTheDocument(); // StatusBadge RUNNING
-    await userEvent.click(screen.getByRole("button", { name: "查看详情 →" }));
+    await userEvent.click(screen.getByRole("button", { name: "查看详情" }));
     expect(onJump).toHaveBeenCalled();
   });
 });

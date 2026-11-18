@@ -112,7 +112,7 @@ export function SessionTree({ model, onFocus, onOpenJob }: SessionTreeProps) {
                       onOpenJob(s.jobId!);
                     }}
                   >
-                    Job →
+                    作业
                   </button>
                 )}
               </div>

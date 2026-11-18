@@ -4,35 +4,27 @@
 /* ============ Run 主模式导航（指挥/图谱/作战台/守卫） ============ */
 .run-modebar {
   display: flex;
-  gap: var(--sp-1);
+  gap: var(--sp-5);
   flex-wrap: wrap;
-  margin-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: var(--sp-5);
 }
 .run-mode {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-2);
-  padding: var(--sp-2) var(--sp-4);
-  border-radius: var(--radius);
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-surface);
+  padding: var(--sp-2) 0 var(--sp-3);
   color: var(--ink-2);
   text-decoration: none;
-  font-size: var(--fs-sm);
-  font-weight: 600;
+  font-size: var(--fs-md);
   cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
 }
 .run-mode:hover {
-  border-color: var(--border-strong);
   color: var(--ink-1);
 }
 .run-mode[data-active="true"] {
-  background: var(--accent-weak);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.run-mode .run-mode-icon {
-  font-size: var(--fs-md);
+  color: var(--ink-1);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
 }
 
 /* 细节页二级导航（折叠在「细节」模式下） */
@@ -61,8 +53,8 @@
 /* ============ 指挥台布局（会话树 | 编排对话） ============ */
 .sn-command-layout {
   display: grid;
-  grid-template-columns: 280px 1fr;
-  gap: var(--sp-3);
+  grid-template-columns: 264px 1fr;
+  gap: var(--sp-6);
   align-items: start;
   min-height: 0;
 }
@@ -109,36 +101,44 @@
 }
 .sn-seg button[data-active="true"] { background: var(--accent-weak); color: var(--accent); }
 
+/* 面板改为开放的编辑式分区：无盒、衬线小标题 + 细分隔线，靠留白分层。 */
 .sn-panel {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius);
-  padding: var(--sp-4);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
 }
 .sn-panel-head {
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  color: var(--ink-2);
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--ink-1);
   margin-bottom: var(--sp-3);
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 /* ============ 会话树 ============ */
 .sn-sessiontree {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius);
-  padding: var(--sp-2);
+  background: transparent;
+  border: none;
+  padding: 0;
   position: sticky;
   top: 0;
 }
 .sn-sessiontree-head {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  padding: var(--sp-1) var(--sp-2) var(--sp-2);
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  color: var(--ink-2);
+  padding: 0 var(--sp-2) var(--sp-2);
+  margin-bottom: var(--sp-1);
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--ink-1);
+  border-bottom: 1px solid var(--border-subtle);
 }
 .sn-session-node {
   border-radius: var(--radius-sm);
@@ -158,17 +158,13 @@
 }
 .sn-session-role {
   flex: none;
-  width: 32px;
-  text-align: center;
   font-size: 11px;
   font-weight: 600;
-  border-radius: var(--radius-sm);
-  padding: 1px 0;
-  background: var(--bg-sunken);
-  color: var(--ink-2);
+  letter-spacing: 0.02em;
+  color: var(--ink-3);
 }
-.sn-session-role[data-role="main"] { background: var(--accent-weak); color: var(--accent); }
-.sn-session-role[data-role="planner"] { background: var(--info-bg); color: var(--info); }
+.sn-session-role[data-role="main"] { color: var(--accent); }
+.sn-session-role[data-role="planner"] { color: var(--ink-2); }
 .sn-session-title {
   flex: 1;
   font-size: var(--fs-sm);
@@ -355,27 +351,27 @@
 /* ============ 作战台 ============ */
 .sn-deck { display: flex; flex-direction: column; gap: var(--sp-4); }
 .sn-deck-overview { margin-bottom: var(--sp-5); }
+/* 指标改为开放的编辑式数字行：大衬线数字 + 安静标签，靠留白与细线分隔，不做色块瓦片。 */
 .sn-deck-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: var(--sp-3);
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--sp-5) var(--sp-6);
+  padding-bottom: var(--sp-5);
+  border-bottom: 1px solid var(--border-subtle);
 }
 .sn-stat {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-left: 3px solid var(--border-strong);
-  border-radius: var(--radius);
-  padding: var(--sp-3) var(--sp-4);
+  padding: 0;
 }
-.sn-stat[data-tone="accent"] { border-left-color: var(--accent); }
-.sn-stat[data-tone="ok"] { border-left-color: var(--ok); }
-.sn-stat[data-tone="warn"] { border-left-color: var(--warn); }
-.sn-stat[data-tone="danger"] { border-left-color: var(--danger); }
-.sn-stat[data-tone="info"] { border-left-color: var(--info); }
-.sn-stat[data-tone="unknown"] { border-left-color: var(--unknown); }
-.sn-stat-value { font-size: var(--fs-2xl); font-weight: 700; line-height: 1.1; }
-.sn-stat-label { font-size: var(--fs-sm); color: var(--ink-2); margin-top: 2px; }
-.sn-stat-sub { font-size: var(--fs-xs); color: var(--ink-3); margin-top: 2px; }
+.sn-stat-value {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 450;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--ink-1);
+}
+.sn-stat-label { font-size: var(--fs-sm); color: var(--ink-2); margin-top: var(--sp-1); }
+.sn-stat-sub { font-size: var(--fs-xs); color: var(--ink-3); margin-top: 1px; }
 
 .sn-deck-grid {
   display: grid;

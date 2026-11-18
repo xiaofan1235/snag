@@ -146,7 +146,7 @@ export function FindingDetail({ model, onReplay, onJump }: FindingDetailProps) {
             )}
             {onJump && (
               <Button size="sm" variant="ghost" onClick={() => onJump("verifier", model.id)}>
-                查看 Verifier →
+                查看 Verifier
               </Button>
             )}
           </div>
