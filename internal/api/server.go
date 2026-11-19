@@ -36,6 +36,7 @@ func NewServer(ctrl *control.Controller, rd *store.Reader) *Server {
 // Handler 返回带全部路由的 http.Handler（Go 1.22+ 方法+路径模式）。
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /v1/runs", s.listRuns)
 	mux.HandleFunc("POST /v1/runs", s.createRun)
 	mux.HandleFunc("GET /v1/runs/{id}/status", s.status)
 	mux.HandleFunc("POST /v1/runs/{id}/start", s.lifecycle("start"))
@@ -49,6 +50,22 @@ type runResp struct {
 	ID    string `json:"id"`
 	State string `json:"state"`
 	Mode  string `json:"mode,omitempty"`
+}
+
+// runItem 对应前端 Run 资源（§16.33）：列表与创建返回它，字段与 apps/web schema.gen.ts Run 对齐。
+type runItem struct {
+	ID          string `json:"id"`
+	WorkspaceID string `json:"workspace_id"`
+	Name        string `json:"name"`
+	State       string `json:"state"`
+	Revision    int64  `json:"revision"`
+	CreatedBy   string `json:"created_by,omitempty"`
+	CreatedAt   string `json:"created_at,omitempty"`
+}
+
+// runListResp 对应前端 RunList。M1 暂无游标分页（next_cursor 省略）。
+type runListResp struct {
+	Items []runItem `json:"items"`
 }
 
 type errResp struct {
@@ -81,6 +98,33 @@ func writeErr(w http.ResponseWriter, err error) {
 	writeJSON(w, st, errResp{Error: err.Error(), Code: code})
 }
 
+// listRuns 列出 Run（§16.33 GET /v1/runs）。M1 无游标分页：按创建时间倒序取最近 200 条，
+// 供前端「运行」列表页消费。只读走 Reader 池（§39.1 CLI/前端不碰写连接）。
+func (s *Server) listRuns(w http.ResponseWriter, r *http.Request) {
+	rows, err := s.rd.DB().QueryContext(r.Context(),
+		`SELECT id, workspace_id, name, state, revision, COALESCE(created_by,''), created_at
+		 FROM runs ORDER BY created_at DESC, id DESC LIMIT 200`)
+	if err != nil {
+		writeErr(w, err)
+		return
+	}
+	defer rows.Close()
+	items := make([]runItem, 0, 16)
+	for rows.Next() {
+		var it runItem
+		if e := rows.Scan(&it.ID, &it.WorkspaceID, &it.Name, &it.State, &it.Revision, &it.CreatedBy, &it.CreatedAt); e != nil {
+			writeErr(w, e)
+			return
+		}
+		items = append(items, it)
+	}
+	if e := rows.Err(); e != nil {
+		writeErr(w, e)
+		return
+	}
+	writeJSON(w, http.StatusOK, runListResp{Items: items})
+}
+
 func (s *Server) createRun(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Name        string `json:"name"`
@@ -103,7 +147,14 @@ func (s *Server) createRun(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, runResp{ID: string(id), State: string(domain.RunDraft)})
+	// 返回完整 Run 资源（新建恒为 DRAFT/revision=1，见 domain.NewRun），前端据此跳转/刷新列表。
+	writeJSON(w, http.StatusCreated, runItem{
+		ID:          string(id),
+		WorkspaceID: wsID,
+		Name:        body.Name,
+		State:       string(domain.RunDraft),
+		Revision:    1,
+	})
 }
 
 func (s *Server) status(w http.ResponseWriter, r *http.Request) {

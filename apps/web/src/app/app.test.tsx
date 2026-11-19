@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -6,6 +6,7 @@ import { App } from "./App";
 import { RouterProvider, matchRoute } from "./router";
 import { InspectorProvider } from "./inspector";
 import { ToastProvider } from "../components";
+import { api } from "../api/client";
 
 function renderApp() {
   const qc = new QueryClient();
@@ -24,6 +25,10 @@ function renderApp() {
 
 beforeEach(() => {
   window.location.hash = "/";
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe("matchRoute", () => {
@@ -69,10 +74,15 @@ describe("App 外壳与导航", () => {
     expect(await screen.findByText("运行列表 / 历史")).toBeInTheDocument();
   });
 
-  it("从 Runs 列表点一个 Run → 进入指挥台（作战模式，默认会话树）", async () => {
+  it("从 Runs 列表（真实接口）点一个 Run → 进入指挥台（作战模式，默认会话树）", async () => {
+    // GET /v1/runs 返回一条，验证「真实查询→列表渲染→点击→进入作战视图」的完整链路。
+    vi.spyOn(api, "listRuns").mockResolvedValue({
+      items: [{ id: "run-1", name: "acme.com 授权测试", state: "RUNNING", workspace_id: "ws-cli", revision: 1 }],
+    });
     window.location.hash = "/runs";
     renderApp();
-    await userEvent.click(screen.getByText("acme.com 授权测试"));
+    // 异步加载：先出现加载态，数据到达后列表项渲染。
+    await userEvent.click(await screen.findByText("acme.com 授权测试"));
     // 作战视图标题 + 主模式导航 + 指挥台默认内容（会话树）。
     expect(await screen.findByText(/运行 run-1/)).toBeInTheDocument();
     expect(screen.getByRole("tablist", { name: "Run 作战模式" })).toBeInTheDocument();

@@ -54,6 +54,8 @@ export interface RunWizardProps {
   preflight: PreflightCheck[];
   onStart: (state: WizardState) => void;
   onRunPreflight?: (state: WizardState) => void;
+  /** 创建请求在途时为 true：禁用启动按钮、防重复提交。 */
+  busy?: boolean;
 }
 
 const STEPS = ["目标", "测试规则", "身份", "执行环境", "策略确认"];
@@ -65,7 +67,7 @@ const defaultState: WizardState = {
   env: { modelProfile: "default", maxWorkers: 2, costBudgetCents: 500, tokenBudget: 1_000_000, maxRuntimeMinutes: 120 },
 };
 
-export function RunWizard({ initial, preflight, onStart, onRunPreflight }: RunWizardProps) {
+export function RunWizard({ initial, preflight, onStart, onRunPreflight, busy }: RunWizardProps) {
   const [step, setStep] = useState(0);
   const [state, setState] = useState<WizardState>({ ...defaultState, ...initial } as WizardState);
 
@@ -207,11 +209,11 @@ export function RunWizard({ initial, preflight, onStart, onRunPreflight }: RunWi
         ) : (
           <Button
             variant="primary"
-            disabled={!preflightPassed}
+            disabled={!preflightPassed || busy}
             title={preflightPassed ? undefined : "Preflight 未全部通过，不能 Start"}
             onClick={() => onStart(state)}
           >
-            Start
+            {busy ? "创建中…" : "Start"}
           </Button>
         )}
       </div>
