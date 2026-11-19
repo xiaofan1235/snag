@@ -59,7 +59,7 @@ export function StrategyPage({ model, onDirective }: StrategyPageProps) {
         <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-3)", flexWrap: "wrap" }}>
           <strong style={{ fontSize: "var(--fs-lg)" }}>Epoch {e.epoch}</strong>
           <span className="sn-badge" data-tone="info">触发：{e.trigger}</span>
-          <span className="mono" style={{ color: "var(--ink-3)", fontSize: "var(--fs-xs)" }}>Snapshot rev {e.snapshotRevision} · {e.createdAt}</span>
+          <span className="mono" style={{ color: "var(--ink-3)", fontSize: "var(--fs-xs)" }}>快照 rev {e.snapshotRevision} · {e.createdAt}</span>
         </div>
         <dl className="sn-kv" style={{ marginTop: "var(--sp-3)" }}>
           <dt>当前优先方向</dt>
@@ -68,13 +68,13 @@ export function StrategyPage({ model, onDirective }: StrategyPageProps) {
           <dd>{e.pausedDirections.join("、") || "无"}</dd>
           <dt>无进展计数</dt>
           <dd>{e.noProgressCount}</dd>
-          {e.lastReframe && (<><dt>最近 Reframe</dt><dd>{e.lastReframe}</dd></>)}
+          {e.lastReframe && (<><dt>最近转向</dt><dd>{e.lastReframe}</dd></>)}
         </dl>
         {/* 用户干预：生成 UserDirective（§16.14），不直改 Patch/DB */}
         <div style={{ display: "flex", gap: "var(--sp-2)", marginTop: "var(--sp-3)", flexWrap: "wrap" }}>
           <Button size="sm" variant="secondary" onClick={() => onDirective?.("STEER_RUN", "优先此方向:" + e.priorityDirection)}>优先此方向</Button>
           <Button size="sm" variant="ghost" onClick={() => onDirective?.("STEER_RUN", "降低此方向优先级:" + e.priorityDirection)}>降低优先级</Button>
-          <Button size="sm" variant="ghost" onClick={() => onDirective?.("STEER_RUN", "停止同类新 Job")}>停止同类新 Job</Button>
+          <Button size="sm" variant="ghost" onClick={() => onDirective?.("STEER_RUN", "停止同类新作业")}>停止同类新作业</Button>
         </div>
       </Card>
 

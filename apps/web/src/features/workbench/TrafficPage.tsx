@@ -46,7 +46,7 @@ export function TrafficPage({ model, onReplay }: TrafficPageProps) {
     <div className="sn-three-col">
       {/* 左：Exchange 列表 */}
       <div className="sn-col-scroll">
-        <div style={{ color: "var(--ink-3)", fontSize: "var(--fs-xs)", marginBottom: "var(--sp-1)" }}>Exchange 列表</div>
+        <div style={{ color: "var(--ink-3)", fontSize: "var(--fs-xs)", marginBottom: "var(--sp-1)" }}>流量条目</div>
         {model.exchanges.map((x) => (
           <button
             key={x.id}
@@ -73,10 +73,10 @@ export function TrafficPage({ model, onReplay }: TrafficPageProps) {
               <StatusBadge status={sel.status < 400 ? "COMPLETED" : "FAILED"} />
               <Button size="sm" variant="secondary" style={{ marginLeft: "auto" }}
                 onClick={() => { onReplay?.(sel.id); setReplayJob("job-replay-" + sel.id); }}>
-                Replay（创建 Job）
+                重放（创建作业）
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setVariant(variant ? null : sel)}>
-                {variant ? "退出对比" : "设为 Variant 对比"}
+                {variant ? "退出对比" : "设为变体对比"}
               </Button>
             </div>
             {replayJob && (
@@ -95,7 +95,7 @@ export function TrafficPage({ model, onReplay }: TrafficPageProps) {
             />
           </>
         ) : (
-          <div className="sn-empty">选择左侧 Exchange</div>
+          <div className="sn-empty">选择左侧流量条目</div>
         )}
       </div>
 
@@ -106,11 +106,11 @@ export function TrafficPage({ model, onReplay }: TrafficPageProps) {
           <Card>
             <dl className="sn-kv">
               <dt>身份</dt><dd>{sel.identity}</dd>
-              <dt>Job</dt><dd className="mono">{sel.jobId}</dd>
-              <dt>Action</dt><dd className="mono">{sel.relatedAction ?? "-"}</dd>
-              <dt>Permit</dt><dd className="mono">{sel.relatedPermit ?? "-"}</dd>
-              <dt>Evidence</dt><dd className="mono">{sel.relatedEvidence ?? "-"}</dd>
-              <dt>Finding</dt><dd className="mono">{sel.relatedFinding ?? "-"}</dd>
+              <dt>作业</dt><dd className="mono">{sel.jobId}</dd>
+              <dt>动作</dt><dd className="mono">{sel.relatedAction ?? "-"}</dd>
+              <dt>许可</dt><dd className="mono">{sel.relatedPermit ?? "-"}</dd>
+              <dt>证据</dt><dd className="mono">{sel.relatedEvidence ?? "-"}</dd>
+              <dt>发现</dt><dd className="mono">{sel.relatedFinding ?? "-"}</dd>
             </dl>
           </Card>
         )}

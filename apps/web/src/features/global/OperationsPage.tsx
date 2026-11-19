@@ -56,7 +56,7 @@ export function OperationsPage({ model, onCheck, onRotate }: {
                 <div style={{ color: "var(--ink-3)", fontSize: "var(--fs-xs)", padding: "var(--sp-2)" }}>密钥只在写入时提交，读取只返回掩码和 SecretRef。</div>
               </div>
               <div>
-                <div style={{ color: "var(--ink-3)", fontSize: "var(--fs-xs)", marginBottom: "var(--sp-1)" }}>Model Profile（槽位）</div>
+                <div className="sn-sub">模型档位（槽位）</div>
                 <table className="sn-table">
                   <thead><tr><th>槽位</th><th>主模型</th><th>备用模型</th><th>温度</th><th>输出上限</th></tr></thead>
                   <tbody>{model.profiles.map((m) => (<tr key={m.slot}><td>{m.slot}</td><td>{m.model}</td><td>{m.fallback}</td><td>{m.temperature}</td><td>{m.maxOutput}</td></tr>))}</tbody>
@@ -114,7 +114,7 @@ export function OperationsPage({ model, onCheck, onRotate }: {
                 <tbody>{model.sandboxes.map((s) => (<tr key={s.id}><td className="mono">{s.id}</td><td className="mono">{s.run}</td><td className="mono" style={{ fontSize: "var(--fs-xs)" }}>{s.imageDigest}</td><td><StatusBadge status={s.state} /></td><td>{s.cpu}/{s.mem}</td><td>{s.lastHeartbeat}</td></tr>))}</tbody>
               </table>
               <div>
-                <div style={{ color: "var(--ink-3)", fontSize: "var(--fs-xs)", marginBottom: "var(--sp-1)" }}>工具注册表</div>
+                <div className="sn-sub">工具注册表</div>
                 <table className="sn-table">
                   <thead><tr><th>工具</th><th>版本</th><th>清单哈希</th><th>副作用</th><th>成功率</th><th>状态</th></tr></thead>
                   <tbody>{model.tools.map((t) => (<tr key={t.id}><td className="mono">{t.name}</td><td>{t.version}</td><td className="mono" style={{ fontSize: "var(--fs-xs)" }}>{t.manifestHash}</td><td>{t.sideEffect}</td><td>{t.successRate}</td><td><StatusBadge status={t.enabled ? "RUNNING" : "STOPPED"} /></td></tr>))}</tbody>

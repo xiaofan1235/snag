@@ -81,6 +81,13 @@ export function SessionTree({ model, onFocus, onOpenJob }: SessionTreeProps) {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
                   onFocus?.(s.id);
+                } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                  e.preventDefault();
+                  const items = Array.from(
+                    e.currentTarget.closest('[role="tree"]')?.querySelectorAll<HTMLElement>('[role="treeitem"]') ?? []
+                  );
+                  const idx = items.indexOf(e.currentTarget);
+                  (e.key === "ArrowDown" ? items[idx + 1] : items[idx - 1])?.focus();
                 }
               }}
             >

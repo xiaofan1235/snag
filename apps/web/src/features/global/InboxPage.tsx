@@ -79,7 +79,7 @@ export function InboxPage(props: InboxPageProps) {
                   </div>
                 </Card>
               ))}
-              <div style={{ color: "var(--ink-3)", fontSize: "var(--fs-xs)" }}>不支持批量批准高风险动作；Snooze 只影响提醒，不延长 Approval 或 Lease。</div>
+              <div style={{ color: "var(--ink-3)", fontSize: "var(--fs-xs)" }}>不支持批量批准高风险动作；稍后只影响提醒，不延长审批或租约。</div>
             </div>
           ),
         },

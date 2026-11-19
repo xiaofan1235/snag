@@ -43,7 +43,7 @@ describe("OperationsPage（§16.24–16.27/16.29）", () => {
 describe("SettingsPage（§16.29）", () => {
   it("Preflight 分组 + FAIL/WARN 状态", () => {
     render(<SettingsPage model={mkSettings} />);
-    expect(screen.getByText("Authorization")).toBeInTheDocument();
+    expect(screen.getByText("授权")).toBeInTheDocument();
     expect(screen.getAllByText("PASS").length).toBeGreaterThan(0);
     expect(screen.getByText("WARN")).toBeInTheDocument();
   });

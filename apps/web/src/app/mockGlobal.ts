@@ -65,14 +65,14 @@ export const mkOperations: OperationsModel = {
 
 export const mkSettings: SettingsModel = {
   preflight: [
-    { group: "Authorization", item: "Scope 规范化", status: "PASS", detail: "app.example.com https:443" },
-    { group: "Authorization", item: "授权时间窗", status: "PASS", detail: "在窗口内" },
-    { group: "Provider", item: "认证 + 模型能力", status: "PASS", detail: "Anthropic 连接正常" },
-    { group: "Identity", item: "账号 A/B 绑定", status: "PASS", detail: "SecretRef 可解析" },
-    { group: "Egress", item: "付费代理 + 禁止直连", status: "PASS", detail: "lease-1 绑定" },
-    { group: "Sandbox", item: "镜像 + 隔离 + 工具", status: "WARN", detail: "浏览器镜像较旧", fix: "更新 runner 镜像" },
-    { group: "Storage", item: "SQLite + Blob + Vault", status: "PASS", detail: "WAL 正常" },
-    { group: "Protocol", item: "Schema 版本 + 恢复能力", status: "PASS", detail: "契约兼容" },
+    { group: "授权", item: "Scope 规范化", status: "PASS", detail: "app.example.com https:443" },
+    { group: "授权", item: "授权时间窗", status: "PASS", detail: "在窗口内" },
+    { group: "模型供应商", item: "认证 + 模型能力", status: "PASS", detail: "Anthropic 连接正常" },
+    { group: "身份", item: "账号 A/B 绑定", status: "PASS", detail: "SecretRef 可解析" },
+    { group: "出口", item: "付费代理 + 禁止直连", status: "PASS", detail: "lease-1 绑定" },
+    { group: "沙箱", item: "镜像 + 隔离 + 工具", status: "WARN", detail: "浏览器镜像较旧", fix: "更新 runner 镜像" },
+    { group: "存储", item: "SQLite + Blob + Vault", status: "PASS", detail: "WAL 正常" },
+    { group: "协议", item: "Schema 版本 + 恢复能力", status: "PASS", detail: "契约兼容" },
   ],
 };
 

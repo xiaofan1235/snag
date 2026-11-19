@@ -107,7 +107,7 @@ export function JobsPage({ model, onCancel, onReprioritize }: JobsPageProps) {
               <span>{sel.kind} · {sel.module}</span>
             </div>
             <dl className="sn-kv">
-              <dt>JobSpec</dt><dd className="mono">{sel.spec ?? "-"}</dd>
+              <dt>作业规格</dt><dd className="mono">{sel.spec ?? "-"}</dd>
               <dt>输入 Evidence</dt><dd className="mono">{(sel.inputEvidence ?? []).join(", ") || "无"}</dd>
               <dt>进度摘要</dt><dd>{sel.progress ?? "-"}</dd>
               <dt>创建原因</dt><dd>{sel.reason}</dd>

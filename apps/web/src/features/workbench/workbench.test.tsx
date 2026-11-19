@@ -71,7 +71,7 @@ describe("TrafficPage（§16.16）", () => {
   it("三栏 + Replay 显示实际 Job ID（非假设已发送）", async () => {
     const onReplay = vi.fn();
     render(<TrafficPage model={mkTraffic} onReplay={onReplay} />);
-    await userEvent.click(screen.getByRole("button", { name: /Replay/ }));
+    await userEvent.click(screen.getByRole("button", { name: /重放/ }));
     expect(onReplay).toHaveBeenCalledWith("x1");
     expect(screen.getByText(/已创建重放 Job/)).toBeInTheDocument();
   });

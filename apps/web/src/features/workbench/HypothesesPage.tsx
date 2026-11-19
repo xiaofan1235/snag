@@ -53,7 +53,7 @@ export function HypothesesPage({ model }: { model: HypothesesModel }) {
           );
         })}
       </div>
-      <Drawer open={sel != null} onClose={() => setSel(null)} title="Hypothesis">
+      <Drawer open={sel != null} onClose={() => setSel(null)} title="假设">
         {sel && (
           <dl className="sn-kv">
             <dt>假设</dt><dd>{sel.statement}</dd>

@@ -86,11 +86,6 @@
   box-shadow: inset 2px 0 0 var(--accent);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
-.app-nav-item .nav-icon {
-  width: 18px;
-  text-align: center;
-  flex: none;
-}
 .app-nav-item .nav-badge {
   margin-left: auto;
   min-width: 18px;
@@ -122,6 +117,10 @@
   .app-main {
     padding: var(--sp-5) var(--sp-4);
   }
+}
+/* flex 子项默认 min-width:auto 会被宽内容撑破并被裁剪；归零让宽布局（看板/三栏）走各自的横向滚动。 */
+.app-main > * {
+  min-width: 0;
 }
 .app-main-head {
   display: flex;

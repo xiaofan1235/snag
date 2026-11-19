@@ -89,7 +89,7 @@ export function CommandDeck({ model, onOpenFinding, onOpenActivity }: CommandDec
 
 export function StatTile({ stat }: { stat: DeckStat }) {
   return (
-    <div className="sn-stat" data-tone={stat.tone ?? "ink-2"}>
+    <div className="sn-stat">
       <div className="sn-stat-value">{typeof stat.value === "number" ? stat.value.toLocaleString() : stat.value}</div>
       <div className="sn-stat-label">{stat.label}</div>
       {stat.sub && <div className="sn-stat-sub">{stat.sub}</div>}

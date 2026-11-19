@@ -63,7 +63,7 @@ export function BrowserPage({ model, onTakeover }: { model: BrowserModel; onTake
                 ) },
                 { id: "dom", label: "DOM 快照", content: <pre className="mono sn-terminal" style={{ background: "var(--bg-sunken)", color: "var(--ink-1)" }}>{sel.domSnapshot}</pre> },
                 { id: "net", label: "网络（经代理留证）", content: (
-                  <table className="sn-table"><thead><tr><th>Method</th><th>URL</th><th>Status</th></tr></thead>
+                  <table className="sn-table"><thead><tr><th>方法</th><th>URL</th><th>状态</th></tr></thead>
                     <tbody>{sel.network.map((n, i) => (<tr key={i}><td>{n.method}</td><td className="mono" style={{ fontSize: "var(--fs-xs)" }}>{n.url}</td><td>{n.status}</td></tr>))}</tbody>
                   </table>
                 ) },
@@ -83,7 +83,7 @@ export function BrowserPage({ model, onTakeover }: { model: BrowserModel; onTake
 
       <Modal open={confirming} onClose={() => setConfirming(false)} title="请求人工接管？" danger confirmText="发起接管审批"
         onConfirm={() => { if (sel) onTakeover?.(sel.id); setConfirming(false); }}>
-        人工接管需新 Approval，绑定 Identity/Run/PolicyRevision 与时限；接管期间每次导航/输入/点击/上传均形成 Action 并经同一 Scope/Policy 检查。
+        人工接管需新审批，绑定身份/运行/PolicyRevision 与时限；接管期间每次导航/输入/点击/上传均形成动作并经同一 Scope/Policy 检查。
       </Modal>
     </div>
   );

@@ -25,7 +25,7 @@ export function SettingsPage({ model, onRecheck }: { model: SettingsModel; onRec
             <div style={{ display: "grid", gap: "var(--sp-4)" }}>
               {groups.map((g) => (
                 <div key={g}>
-                  <div style={{ fontWeight: 600, marginBottom: "var(--sp-2)" }}>{g}</div>
+                  <div className="sn-sub">{g}</div>
                   <div className="sn-table-wrap">
                     <table className="sn-table">
                       <tbody>
@@ -65,7 +65,7 @@ export function SettingsPage({ model, onRecheck }: { model: SettingsModel; onRec
           content: (
             <dl className="sn-kv">
               <dt>默认脱敏</dt><dd>开（服务端 Redacted Projection + 前端额外防线）</dd>
-              <dt>Raw Reveal 时限</dt><dd>5 分钟（短时授权 + 审计）</dd>
+              <dt>原文揭示时限</dt><dd>5 分钟（短时授权 + 审计）</dd>
               <dt>外部内容</dt><dd>HTML/SVG/Markdown 视为不可信；CSP 禁外部脚本/自动外链图片</dd>
               <dt>下载确认</dt><dd>安全 Content-Disposition</dd>
               <dt>本地会话锁定</dt><dd>同源 HttpOnly + SameSite=Strict；Token 不入 URL/LocalStorage</dd>

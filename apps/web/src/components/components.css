@@ -370,15 +370,16 @@ textarea.sn-input {
 .sn-kanban {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: minmax(200px, 1fr);
-  gap: var(--sp-3);
+  grid-auto-columns: minmax(210px, 1fr);
+  gap: var(--sp-4);
   overflow-x: auto;
+  min-width: 0; /* flex 子项下允许横向滚动而非撑破外层被裁剪 */
   padding-bottom: var(--sp-2);
 }
+/* 看板列改轻：透明底、表头细线分隔，卡片才是填充元素（少用盒子） */
 .sn-kanban-col {
-  background: var(--bg-sunken);
-  border-radius: var(--radius);
-  padding: var(--sp-2);
+  background: transparent;
+  padding: 0;
   min-height: 80px;
 }
 .sn-kanban-col-head {
@@ -388,26 +389,40 @@ textarea.sn-input {
   font-size: var(--fs-xs);
   color: var(--ink-2);
   font-weight: 600;
-  padding: var(--sp-1) var(--sp-2);
+  padding: 0 var(--sp-1) var(--sp-2);
+  margin-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--border-subtle);
 }
 .sn-kanban-card {
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  padding: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
   margin-bottom: var(--sp-2);
   font-size: var(--fs-sm);
   cursor: pointer;
+  transition: border-color var(--dur-1) var(--ease);
 }
 .sn-kanban-card:hover {
-  box-shadow: var(--shadow-1);
+  border-color: var(--border-strong);
 }
+
+/* ===== 统一的编辑式分区小标题（替代各页零散的内联小标签） ===== */
+.sn-sub {
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--ink-1);
+  margin: var(--sp-5) 0 var(--sp-3);
+}
+.sn-sub:first-child { margin-top: 0; }
 
 /* ===== 三栏工作台（Traffic/Browser） ===== */
 .sn-three-col {
   display: grid;
-  grid-template-columns: 260px 1fr 260px;
-  gap: var(--sp-3);
+  grid-template-columns: 240px minmax(0, 1fr) 240px;
+  gap: var(--sp-4);
   min-height: 0;
 }
 @media (max-width: 980px) {

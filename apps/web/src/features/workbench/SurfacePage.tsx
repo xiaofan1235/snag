@@ -83,7 +83,7 @@ export function SurfacePage({ model, onEndpointClick, onDiscoveryDirective }: Su
 
   const discoveryTab = (
     <div style={{ display: "grid", gap: "var(--sp-2)" }}>
-      {model.discoveries.length === 0 && <div className="sn-empty">Discovery Inbox 为空</div>}
+      {model.discoveries.length === 0 && <div className="sn-empty">发现收件箱为空</div>}
       {model.discoveries.map((d) => (
         <Card key={d.id}>
           <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-2)", marginBottom: "var(--sp-1)" }}>
@@ -94,7 +94,7 @@ export function SurfacePage({ model, onEndpointClick, onDiscoveryDirective }: Su
           </div>
           <div style={{ fontSize: "var(--fs-sm)" }}>{d.detail}</div>
           <div style={{ display: "flex", gap: "var(--sp-2)", marginTop: "var(--sp-2)" }}>
-            <Button size="sm" variant="secondary" onClick={() => onDiscoveryDirective?.(d.id, "evaluate")}>交给 Strategist 评估</Button>
+            <Button size="sm" variant="secondary" onClick={() => onDiscoveryDirective?.(d.id, "evaluate")}>交给策略器评估</Button>
             <Button size="sm" variant="ghost" onClick={() => onDiscoveryDirective?.(d.id, "duplicate")}>标记重复</Button>
             <Button size="sm" variant="ghost" onClick={() => onDiscoveryDirective?.(d.id, "dismiss")}>忽略</Button>
           </div>
